@@ -22,9 +22,17 @@
   },
   "homepage": "https://github.com/AllyMurray/hotukdeals-discord-notifier#readme",
   "dependencies": {
-    "sst": "3.17.10"
+    "@aws-lambda-powertools/logger": "^2.23.0",
+    "@aws-sdk/client-dynamodb": "^3.844.0",
+    "@aws-sdk/lib-dynamodb": "^3.844.0",
+    "middy": "^0.36.0",
+    "rss-parser": "^3.13.0",
+    "sst": "3.17.10",
+    "undici": "^7.11.0"
   },
   "devDependencies": {
-    "@types/aws-lambda": "8.10.150"
-  }
+    "@types/aws-lambda": "8.10.150",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }
