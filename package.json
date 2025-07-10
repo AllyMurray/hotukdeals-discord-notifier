@@ -20,5 +20,11 @@
   "bugs": {
     "url": "https://github.com/AllyMurray/hotukdeals-discord-notifier/issues"
   },
-  "homepage": "https://github.com/AllyMurray/hotukdeals-discord-notifier#readme"
+  "homepage": "https://github.com/AllyMurray/hotukdeals-discord-notifier#readme",
+  "dependencies": {
+    "sst": "3.17.10"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.150"
+  }
 }
