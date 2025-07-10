@@ -1,0 +1,24 @@
+{
+  "name": "hotukdeals-discord-notifier",
+  "version": "0.0.0",
+  "description": "A Discord bot that monitors HotUKDeals RSS feed and sends deal notifications to Discord channels",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AllyMurray/hotukdeals-discord-notifier.git"
+  },
+  "keywords": [
+    "hotukdeals",
+    "discord",
+    "notifier"
+  ],
+  "author": "ally-murray",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AllyMurray/hotukdeals-discord-notifier/issues"
+  },
+  "homepage": "https://github.com/AllyMurray/hotukdeals-discord-notifier#readme"
+}
