@@ -4,7 +4,8 @@
   "description": "A Discord bot that monitors HotUKDeals RSS feed and sends deal notifications to Discord channels",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "feed-parser": "npx tsx scripts/run-feed-parser.ts"
   },
   "repository": {
     "type": "git",
@@ -25,13 +26,15 @@
     "@aws-lambda-powertools/logger": "^2.23.0",
     "@aws-sdk/client-dynamodb": "^3.844.0",
     "@aws-sdk/lib-dynamodb": "^3.844.0",
-    "middy": "^0.36.0",
+    "@middy/core": "^6.3.2",
+    "cheerio": "^1.1.0",
     "rss-parser": "^3.13.0",
     "sst": "3.17.10",
     "undici": "^7.11.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.150",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   },
   "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
