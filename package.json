@@ -1,7 +1,7 @@
 {
   "name": "hotukdeals-discord-notifier",
   "version": "0.0.0",
-  "description": "A Discord bot that monitors HotUKDeals RSS feed and sends deal notifications to Discord channels",
+  "description": "A Discord bot that monitors HotUKDeals and sends deal notifications to Discord channels",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -28,7 +28,6 @@
     "@aws-sdk/lib-dynamodb": "^3.844.0",
     "@middy/core": "^6.3.2",
     "cheerio": "^1.1.0",
-    "rss-parser": "^3.13.0",
     "sst": "3.17.10",
     "undici": "^7.11.0"
   },
