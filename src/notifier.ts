@@ -5,7 +5,7 @@ import middy from '@middy/core';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { request } from 'undici';
-import { fetchDeals } from './feed-parser';
+import { fetchDeals, Deal } from './feed-parser';
 
 const logger = new Logger({ serviceName: 'HotUKDealsNotifier' });
 
@@ -18,11 +18,14 @@ interface SearchTermConfig {
   searchTerm: string;
   webhookUrl: string;
   enabled?: boolean;
+  excludeKeywords?: string[];
+  includeKeywords?: string[];
+  caseSensitive?: boolean;
 }
 
 interface GroupedWebhookConfig {
   webhookUrl: string;
-  searchTerms: string[];
+  configs: SearchTermConfig[];
 }
 
 interface DealWithSearchTerm {
@@ -63,7 +66,10 @@ const getSearchTermConfigs = async (): Promise<SearchTermConfig[]> => {
     const configs = (result.Items || []).map(item => ({
       searchTerm: item.searchTerm,
       webhookUrl: item.webhookUrl,
-      enabled: item.enabled !== false // default to true if not specified
+      enabled: item.enabled !== false, // default to true if not specified
+      excludeKeywords: item.excludeKeywords || [],
+      includeKeywords: item.includeKeywords || [],
+      caseSensitive: item.caseSensitive || false
     })).filter(config => config.enabled);
 
     // Update cache
@@ -78,25 +84,69 @@ const getSearchTermConfigs = async (): Promise<SearchTermConfig[]> => {
   }
 };
 
+// Filter deals based on include/exclude keywords
+const filterDeal = (deal: Deal, config: SearchTermConfig): boolean => {
+  const title = config.caseSensitive ? deal.title : deal.title.toLowerCase();
+  const merchant = config.caseSensitive ? (deal.merchant || '') : (deal.merchant || '').toLowerCase();
+
+  // Combine title and merchant for filtering
+  const searchText = `${title} ${merchant}`.trim();
+
+  // Check exclude keywords
+  if (config.excludeKeywords && config.excludeKeywords.length > 0) {
+    const excludeWords = config.caseSensitive
+      ? config.excludeKeywords
+      : config.excludeKeywords.map(keyword => keyword.toLowerCase());
+
+    if (excludeWords.some(keyword => searchText.includes(keyword))) {
+      logger.debug('Deal filtered out by exclude keywords', {
+        dealTitle: deal.title,
+        excludeKeywords: config.excludeKeywords,
+        searchTerm: config.searchTerm
+      });
+      return false;
+    }
+  }
+
+  // Check include keywords (all must be present if specified)
+  if (config.includeKeywords && config.includeKeywords.length > 0) {
+    const includeWords = config.caseSensitive
+      ? config.includeKeywords
+      : config.includeKeywords.map(keyword => keyword.toLowerCase());
+
+    if (!includeWords.every(keyword => searchText.includes(keyword))) {
+      logger.debug('Deal filtered out by include keywords', {
+        dealTitle: deal.title,
+        includeKeywords: config.includeKeywords,
+        searchTerm: config.searchTerm
+      });
+      return false;
+    }
+  }
+
+  return true;
+};
+
 // Group search terms by webhook URL
 const groupConfigsByWebhook = (configs: SearchTermConfig[]): GroupedWebhookConfig[] => {
   const grouped = configs.reduce((acc, config) => {
     if (!acc[config.webhookUrl]) {
       acc[config.webhookUrl] = [];
     }
-    acc[config.webhookUrl].push(config.searchTerm);
+    acc[config.webhookUrl].push(config);
     return acc;
-  }, {} as Record<string, string[]>);
+  }, {} as Record<string, SearchTermConfig[]>);
 
-  return Object.entries(grouped).map(([webhookUrl, searchTerms]) => ({
+  return Object.entries(grouped).map(([webhookUrl, configs]) => ({
     webhookUrl,
-    searchTerms
+    configs
   }));
 };
 
 // Helper function to process multiple search terms for a webhook
 const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> => {
-  const { webhookUrl, searchTerms } = config;
+  const { webhookUrl, configs } = config;
+  const searchTerms = configs.map(c => c.searchTerm);
   logger.info('Processing search terms for webhook', {
     webhookUrl: webhookUrl.substring(0, 50) + '...',
     searchTerms
@@ -106,7 +156,8 @@ const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> 
     const allNewDeals: DealWithSearchTerm[] = [];
 
     // Process each search term and collect new deals
-    for (const searchTerm of searchTerms) {
+    for (const searchConfig of configs) {
+      const { searchTerm } = searchConfig;
       logger.info('Fetching deals for search term', { searchTerm });
 
       const deals = await fetchDeals(searchTerm);
@@ -120,6 +171,16 @@ const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> 
         }));
 
         if (!exists.Item) {
+          // Apply filtering logic
+          if (!filterDeal(deal, searchConfig)) {
+            logger.debug('Deal filtered out', {
+              dealId,
+              title: deal.title,
+              searchTerm
+            });
+            continue;
+          }
+
           logger.info('New deal found', {
             title: deal.title,
             link: deal.link,
@@ -285,7 +346,7 @@ const baseHandler: Handler = async () => {
     totalSearchTerms: configs.length,
     groups: groupedConfigs.map(g => ({
       webhook: g.webhookUrl.substring(0, 50) + '...',
-      searchTerms: g.searchTerms
+      searchTerms: g.configs.map(c => c.searchTerm)
     }))
   });
 
