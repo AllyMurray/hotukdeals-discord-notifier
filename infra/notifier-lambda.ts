@@ -10,6 +10,18 @@ const dealsTable = new sst.aws.Dynamo("DealsTable", {
   }
 });
 
+const configTable = new sst.aws.Dynamo("ConfigTable", {
+  fields: {
+    searchTerm: "string",
+  },
+  primaryIndex: { hashKey: "searchTerm" },
+  transform: {
+    table(args, opts, name) {
+        args.name = 'hotukdeals-config'
+    },
+  }
+});
+
 const notifierLambda = new sst.aws.Cron("NotifierLambda", {
   function: {
     name: "hotukdeals-discord-notifier",
@@ -17,17 +29,20 @@ const notifierLambda = new sst.aws.Cron("NotifierLambda", {
     timeout: "30 seconds",
     environment: {
       DYNAMODB_TABLE_NAME: dealsTable.name,
-      DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL!,
-      SEARCH_TERMS: process.env.SEARCH_TERMS || "steam-deck",
+      CONFIG_TABLE_NAME: configTable.name,
     },
     permissions: [
       {
         actions: ["dynamodb:GetItem", "dynamodb:PutItem"],
         resources: [dealsTable.arn],
       },
+      {
+        actions: ["dynamodb:Scan"],
+        resources: [configTable.arn],
+      },
     ],
   },
   schedule: "rate(1 minute)",
 });
 
-export { dealsTable, notifierLambda };
+export { dealsTable, configTable, notifierLambda };

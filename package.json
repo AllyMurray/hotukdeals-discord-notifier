@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "feed-parser": "npx tsx scripts/run-feed-parser.ts"
+    "feed-parser": "npx tsx scripts/run-feed-parser.ts",
+    "manage-config": "npx tsx scripts/manage-config.ts"
   },
   "repository": {
     "type": "git",
