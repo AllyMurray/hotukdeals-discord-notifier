@@ -341,6 +341,92 @@ export async function toggleSearchTermConfig(searchTerm: string): Promise<void> 
   }
 }
 
+// Remove specific filters from a search term
+export async function removeFiltersFromSearchTerm(searchTerm: string, removeExcludeKeywords?: string[], removeIncludeKeywords?: string[]): Promise<void> {
+  const spinner = ora(`Removing filters from search term: ${searchTerm}...`).start();
+
+  try {
+    // First get the current config
+    const result = await ddb.send(new ScanCommand({
+      TableName: configTableName,
+      FilterExpression: 'searchTerm = :term',
+      ExpressionAttributeValues: {
+        ':term': searchTerm
+      }
+    }));
+
+    const config = result.Items?.[0];
+    if (!config) {
+      spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
+      return;
+    }
+
+    const item: any = {
+      searchTerm: config.searchTerm,
+      webhookUrl: config.webhookUrl,
+      enabled: config.enabled,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Remove specific exclusions
+    if (removeExcludeKeywords && removeExcludeKeywords.length > 0) {
+      const existingExcludes = config.excludeKeywords || [];
+      const filteredExcludes = existingExcludes.filter((keyword: string) =>
+        !removeExcludeKeywords.includes(keyword)
+      );
+      if (filteredExcludes.length > 0) {
+        item.excludeKeywords = filteredExcludes;
+      }
+    } else if (config.excludeKeywords) {
+      item.excludeKeywords = config.excludeKeywords;
+    }
+
+    // Remove specific inclusions
+    if (removeIncludeKeywords && removeIncludeKeywords.length > 0) {
+      const existingIncludes = config.includeKeywords || [];
+      const filteredIncludes = existingIncludes.filter((keyword: string) =>
+        !removeIncludeKeywords.includes(keyword)
+      );
+      if (filteredIncludes.length > 0) {
+        item.includeKeywords = filteredIncludes;
+      }
+    } else if (config.includeKeywords) {
+      item.includeKeywords = config.includeKeywords;
+    }
+
+    // Preserve case sensitivity
+    if (config.caseSensitive !== undefined) {
+      item.caseSensitive = config.caseSensitive;
+    }
+
+    await ddb.send(new PutCommand({
+      TableName: configTableName,
+      Item: item
+    }));
+
+    spinner.succeed(chalk.green(`Removed filters from search term: ${chalk.bold(searchTerm)}`));
+
+    // Show what was removed
+    if (removeExcludeKeywords && removeExcludeKeywords.length > 0) {
+      console.log(chalk.red(`   ➖ Removed exclusions: ${removeExcludeKeywords.join(', ')}`));
+    }
+    if (removeIncludeKeywords && removeIncludeKeywords.length > 0) {
+      console.log(chalk.green(`   ➖ Removed inclusions: ${removeIncludeKeywords.join(', ')}`));
+    }
+
+    // Show current filters
+    if (item.excludeKeywords && item.excludeKeywords.length > 0) {
+      console.log(chalk.red(`   🚫 Still excluding: ${item.excludeKeywords.join(', ')}`));
+    }
+    if (item.includeKeywords && item.includeKeywords.length > 0) {
+      console.log(chalk.green(`   ✅ Still including: ${item.includeKeywords.join(', ')}`));
+    }
+  } catch (error) {
+    spinner.fail(chalk.red(`Error removing filters from ${searchTerm}`));
+    console.error(chalk.red(error));
+  }
+}
+
 // Add or update filters for a search term
 export async function addFiltersToSearchTerm(searchTerm: string, excludeKeywords?: string[], includeKeywords?: string[], caseSensitive?: boolean): Promise<void> {
   const spinner = ora(`Updating filters for search term: ${searchTerm}...`).start();
@@ -368,15 +454,30 @@ export async function addFiltersToSearchTerm(searchTerm: string, excludeKeywords
       updatedAt: new Date().toISOString()
     };
 
-    // Add filtering fields
+    // Merge filtering fields with existing ones
     if (excludeKeywords && excludeKeywords.length > 0) {
-      item.excludeKeywords = excludeKeywords;
+      const existingExcludes = config.excludeKeywords || [];
+      const newExcludes = [...new Set([...existingExcludes, ...excludeKeywords])]; // Remove duplicates
+      item.excludeKeywords = newExcludes;
+    } else if (config.excludeKeywords) {
+      // Preserve existing excludes if no new ones provided
+      item.excludeKeywords = config.excludeKeywords;
     }
+
     if (includeKeywords && includeKeywords.length > 0) {
-      item.includeKeywords = includeKeywords;
+      const existingIncludes = config.includeKeywords || [];
+      const newIncludes = [...new Set([...existingIncludes, ...includeKeywords])]; // Remove duplicates
+      item.includeKeywords = newIncludes;
+    } else if (config.includeKeywords) {
+      // Preserve existing includes if no new ones provided
+      item.includeKeywords = config.includeKeywords;
     }
+
     if (caseSensitive !== undefined) {
       item.caseSensitive = caseSensitive;
+    } else if (config.caseSensitive !== undefined) {
+      // Preserve existing case sensitivity setting
+      item.caseSensitive = config.caseSensitive;
     }
 
     await ddb.send(new PutCommand({
@@ -386,11 +487,12 @@ export async function addFiltersToSearchTerm(searchTerm: string, excludeKeywords
 
     spinner.succeed(chalk.green(`Updated filters for search term: ${chalk.bold(searchTerm)}`));
 
-    if (excludeKeywords && excludeKeywords.length > 0) {
-      console.log(chalk.red(`   🚫 Excluding: ${excludeKeywords.join(', ')}`));
+    // Show all current exclusions/inclusions (both existing + new)
+    if (item.excludeKeywords && item.excludeKeywords.length > 0) {
+      console.log(chalk.red(`   🚫 Excluding: ${item.excludeKeywords.join(', ')}`));
     }
-    if (includeKeywords && includeKeywords.length > 0) {
-      console.log(chalk.green(`   ✅ Including: ${includeKeywords.join(', ')}`));
+    if (item.includeKeywords && item.includeKeywords.length > 0) {
+      console.log(chalk.green(`   ✅ Including: ${item.includeKeywords.join(', ')}`));
     }
     if (caseSensitive !== undefined) {
       console.log(chalk.blue(`   🔤 Case sensitive: ${caseSensitive ? 'enabled' : 'disabled'}`));
@@ -481,7 +583,7 @@ program
 // Add filter command
 program
   .command('add-filter')
-  .description('Add or update filters for a search term')
+  .description('Add filters to a search term (merges with existing filters)')
   .argument('<searchTerm>', 'The search term to add filters to')
   .option('--exclude <keywords>', 'Comma-separated list of keywords to exclude')
   .option('--include <keywords>', 'Comma-separated list of keywords to include (ALL must be present)')
@@ -491,6 +593,25 @@ program
     const includeKeywords = options.include ? options.include.split(',').map((k: string) => k.trim()) : undefined;
 
     await addFiltersToSearchTerm(searchTerm, excludeKeywords, includeKeywords, options.caseSensitive);
+  });
+
+// Remove filter command
+program
+  .command('remove-filter')
+  .description('Remove specific filters from a search term')
+  .argument('<searchTerm>', 'The search term to remove filters from')
+  .option('--exclude <keywords>', 'Comma-separated list of exclude keywords to remove')
+  .option('--include <keywords>', 'Comma-separated list of include keywords to remove')
+  .action(async (searchTerm: string, options: { exclude?: string, include?: string }) => {
+    const removeExcludeKeywords = options.exclude ? options.exclude.split(',').map((k: string) => k.trim()) : undefined;
+    const removeIncludeKeywords = options.include ? options.include.split(',').map((k: string) => k.trim()) : undefined;
+
+    if (!removeExcludeKeywords && !removeIncludeKeywords) {
+      console.log(chalk.red('❌ Please specify at least one filter to remove with --exclude or --include'));
+      return;
+    }
+
+    await removeFiltersFromSearchTerm(searchTerm, removeExcludeKeywords, removeIncludeKeywords);
   });
 
 // Add examples command
@@ -506,8 +627,10 @@ program
 
     console.log(chalk.yellow('Filtering:'));
     console.log(chalk.dim('  manage-config add-filter steam --exclude "washing,iron,kettle"'));
-    console.log(chalk.dim('  manage-config add-filter steam --include "game,gaming" --exclude "washing machine"'));
-    console.log(chalk.dim('  manage-config add-filter laptop --exclude "refurbished,used" --case-sensitive\n'));
+    console.log(chalk.dim('  manage-config add-filter steam --exclude "Hisense" --include "game,gaming"'));
+    console.log(chalk.dim('  manage-config add-filter laptop --exclude "refurbished,used" --case-sensitive'));
+    console.log(chalk.dim('  manage-config remove-filter steam --exclude "iron"'));
+    console.log(chalk.dim('  manage-config remove-filter laptop --exclude "refurbished" --include "used"\n'));
 
     console.log(chalk.yellow('Management:'));
     console.log(chalk.dim('  manage-config list-grouped'));
