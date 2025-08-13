@@ -239,27 +239,31 @@ const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> 
   }
 };
 
-// Helper function to get temperature emoji
-const getTemperatureEmoji = (temperature?: 'hot' | 'warm' | 'cold', score?: number): string => {
-  if (temperature === 'hot' || (score && score >= 100)) return '🔥';
-  if (temperature === 'warm' || (score && score >= 50)) return '⭐';
-  return '❄️';
-};
+// Helper function to get random deal color
+const getDealColor = (): number => {
+  const colors = [
+    0x4CAF50, // Green
+    0x2196F3, // Blue
+    0xFF9800, // Orange
+    0x9C27B0, // Purple
+    0xF44336, // Red
+    0x00BCD4, // Cyan
+    0x8BC34A, // Light Green
+    0x3F51B5, // Indigo
+    0xFF5722, // Deep Orange
+    0x607D8B  // Blue Grey
+  ];
 
-// Helper function to get deal color based on temperature/score
-const getDealColor = (temperature?: 'hot' | 'warm' | 'cold', score?: number): number => {
-  if (temperature === 'hot' || (score && score >= 100)) return 0xFF4444; // Red for hot deals
-  if (temperature === 'warm' || (score && score >= 50)) return 0xFFA500; // Orange for warm deals
-  return 0x4CAF50; // Green for regular deals
+  return colors[Math.floor(Math.random() * colors.length)];
 };
 
 // Format price display with savings
 const formatPrice = (deal: DealWithSearchTerm): string => {
   let priceText = '';
-  
+
   if (deal.price) {
     priceText += `💰 **${deal.price}**`;
-    
+
     if (deal.originalPrice && deal.savings) {
       priceText += ` ~~${deal.originalPrice}~~`;
       priceText += ` (Save ${deal.savings}`;
@@ -269,7 +273,7 @@ const formatPrice = (deal: DealWithSearchTerm): string => {
       priceText += ')';
     }
   }
-  
+
   return priceText;
 };
 
@@ -278,7 +282,7 @@ const createDealEmbed = (deal: DealWithSearchTerm): any => {
   const embed: any = {
     title: deal.title,
     url: deal.link,
-    color: getDealColor(deal.temperature, deal.score),
+    color: getDealColor(),
     fields: [],
     footer: {
       text: `Search Term: ${deal.searchTerm}`,
@@ -309,26 +313,10 @@ const createDealEmbed = (deal: DealWithSearchTerm): any => {
     });
   }
 
-  // Add deal metadata
-  let metadataText = '';
-  if (deal.score !== undefined) {
-    metadataText += `${getTemperatureEmoji(deal.temperature, deal.score)} Score: ${deal.score}°`;
-  }
-  if (deal.commentCount !== undefined && deal.commentCount > 0) {
-    if (metadataText) metadataText += ' • ';
-    metadataText += `💬 ${deal.commentCount} comments`;
-  }
-  
-  if (metadataText) {
-    embed.fields.push({
-      name: 'Deal Info',
-      value: metadataText,
-      inline: false
-    });
-  }
 
   return embed;
 };
+
 
 // Send combined Discord message for all new deals using rich embeds
 const sendCombinedDiscordMessage = async (webhookUrl: string, deals: DealWithSearchTerm[]): Promise<void> => {
@@ -348,7 +336,7 @@ const sendCombinedDiscordMessage = async (webhookUrl: string, deals: DealWithSea
     // Discord allows up to 10 embeds per message, so we need to batch them
     const maxEmbedsPerMessage = 10;
     const dealChunks: DealWithSearchTerm[][] = [];
-    
+
     for (let i = 0; i < deals.length; i += maxEmbedsPerMessage) {
       dealChunks.push(deals.slice(i, i + maxEmbedsPerMessage));
     }
@@ -356,15 +344,15 @@ const sendCombinedDiscordMessage = async (webhookUrl: string, deals: DealWithSea
     for (let chunkIndex = 0; chunkIndex < dealChunks.length; chunkIndex++) {
       const chunk = dealChunks[chunkIndex];
       const embeds = chunk.map(createDealEmbed);
-      
+
       // Create summary content for the first message
       let content = '';
       if (chunkIndex === 0) {
         const hotDealsCount = deals.filter(d => d.temperature === 'hot' || (d.score && d.score >= 100)).length;
         const warmDealsCount = deals.filter(d => d.temperature === 'warm' || (d.score && d.score >= 50 && d.score < 100)).length;
-        
+
         content = `🆕 **${totalDeals} new deal${totalDeals > 1 ? 's' : ''}** found for: **${searchTerms.join(', ')}**`;
-        
+
         if (hotDealsCount > 0) {
           content += `\n🔥 ${hotDealsCount} hot deal${hotDealsCount > 1 ? 's' : ''}`;
         }
