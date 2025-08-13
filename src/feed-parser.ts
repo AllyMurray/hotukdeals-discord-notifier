@@ -74,6 +74,36 @@ export async function fetchDeals(searchTerm: string): Promise<Deal[]> {
       // Silently continue if Vue data parsing fails
     }
 
+    // Fallback: Try to extract price from text content if not found in Vue data
+    if (!price) {
+      // Look for price in the deal title or nearby text
+      const priceText = $(el).find('.thread-price, .price, [class*="price"]').text().trim();
+      if (priceText) {
+        price = priceText;
+      } else {
+        // Try to find price pattern in the title (£X.XX, £X, $X.XX, etc.)
+        const titleText = title;
+        const priceMatch = titleText.match(/[£$€][\d,]+(?:\.\d{2})?|\b\d+(?:\.\d{2})?\s*(?:£|GBP|pounds?)\b/i);
+        if (priceMatch) {
+          price = priceMatch[0];
+        } else {
+          // Look for price patterns like "£X off", "X% off", "save £X", "from £X"
+          const priceOfferMatch = titleText.match(/(?:from|save|off|was)\s*[£$€][\d,]+(?:\.\d{2})?|[£$€][\d,]+(?:\.\d{2})?\s*(?:off|discount)/i);
+          if (priceOfferMatch) {
+            price = priceOfferMatch[0];
+          }
+        }
+      }
+    }
+
+    // Fallback: Try to extract merchant from text if not found in Vue data
+    if (!merchant) {
+      const merchantText = $(el).find('.thread-merchant, .merchant, [class*="merchant"]').text().trim();
+      if (merchantText) {
+        merchant = merchantText;
+      }
+    }
+
     deals.push({
       id,
       title,
