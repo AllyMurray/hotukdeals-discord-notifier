@@ -33,8 +33,15 @@ interface DealWithSearchTerm {
   title: string;
   link: string;
   price?: string;
+  originalPrice?: string;
   merchant?: string;
+  merchantUrl?: string;
   timestamp?: number;
+  score?: number;
+  temperature?: 'hot' | 'warm' | 'cold';
+  commentCount?: number;
+  savings?: string;
+  savingsPercentage?: number;
   searchTerm: string;
 }
 
@@ -232,7 +239,98 @@ const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> 
   }
 };
 
-// Send combined Discord message for all new deals
+// Helper function to get temperature emoji
+const getTemperatureEmoji = (temperature?: 'hot' | 'warm' | 'cold', score?: number): string => {
+  if (temperature === 'hot' || (score && score >= 100)) return '🔥';
+  if (temperature === 'warm' || (score && score >= 50)) return '⭐';
+  return '❄️';
+};
+
+// Helper function to get deal color based on temperature/score
+const getDealColor = (temperature?: 'hot' | 'warm' | 'cold', score?: number): number => {
+  if (temperature === 'hot' || (score && score >= 100)) return 0xFF4444; // Red for hot deals
+  if (temperature === 'warm' || (score && score >= 50)) return 0xFFA500; // Orange for warm deals
+  return 0x4CAF50; // Green for regular deals
+};
+
+// Format price display with savings
+const formatPrice = (deal: DealWithSearchTerm): string => {
+  let priceText = '';
+  
+  if (deal.price) {
+    priceText += `💰 **${deal.price}**`;
+    
+    if (deal.originalPrice && deal.savings) {
+      priceText += ` ~~${deal.originalPrice}~~`;
+      priceText += ` (Save ${deal.savings}`;
+      if (deal.savingsPercentage) {
+        priceText += ` - ${deal.savingsPercentage}% off`;
+      }
+      priceText += ')';
+    }
+  }
+  
+  return priceText;
+};
+
+// Create Discord embed for a single deal
+const createDealEmbed = (deal: DealWithSearchTerm): any => {
+  const embed: any = {
+    title: deal.title,
+    url: deal.link,
+    color: getDealColor(deal.temperature, deal.score),
+    fields: [],
+    footer: {
+      text: `Search Term: ${deal.searchTerm}`,
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  // Add price information
+  const priceInfo = formatPrice(deal);
+  if (priceInfo) {
+    embed.fields.push({
+      name: 'Price',
+      value: priceInfo,
+      inline: true
+    });
+  }
+
+  // Add merchant information
+  if (deal.merchant) {
+    let merchantText = `🏪 ${deal.merchant}`;
+    if (deal.merchantUrl) {
+      merchantText = `🏪 [${deal.merchant}](${deal.merchantUrl})`;
+    }
+    embed.fields.push({
+      name: 'Merchant',
+      value: merchantText,
+      inline: true
+    });
+  }
+
+  // Add deal metadata
+  let metadataText = '';
+  if (deal.score !== undefined) {
+    metadataText += `${getTemperatureEmoji(deal.temperature, deal.score)} Score: ${deal.score}°`;
+  }
+  if (deal.commentCount !== undefined && deal.commentCount > 0) {
+    if (metadataText) metadataText += ' • ';
+    metadataText += `💬 ${deal.commentCount} comments`;
+  }
+  
+  if (metadataText) {
+    embed.fields.push({
+      name: 'Deal Info',
+      value: metadataText,
+      inline: false
+    });
+  }
+
+  return embed;
+};
+
+// Send combined Discord message for all new deals using rich embeds
 const sendCombinedDiscordMessage = async (webhookUrl: string, deals: DealWithSearchTerm[]): Promise<void> => {
   try {
     // Group deals by search term for better organization
@@ -247,77 +345,54 @@ const sendCombinedDiscordMessage = async (webhookUrl: string, deals: DealWithSea
     const totalDeals = deals.length;
     const searchTerms = Object.keys(dealsBySearchTerm);
 
-    let message = `🆕 **${totalDeals} new deal${totalDeals > 1 ? 's' : ''}** found for: **${searchTerms.join(', ')}**\n\n`;
-
-    // Add deals grouped by search term
-    for (const [searchTerm, searchDeals] of Object.entries(dealsBySearchTerm)) {
-      if (searchTerms.length > 1) {
-        message += `**${searchTerm}:**\n`;
-      }
-
-      for (const deal of searchDeals) {
-        message += `• **${deal.title}**`;
-        if (deal.price) {
-          message += ` - ${deal.price}`;
-        }
-        if (deal.merchant) {
-          message += ` at ${deal.merchant}`;
-        }
-        message += `\n  ${deal.link}\n`;
-      }
-
-      if (searchTerms.length > 1) {
-        message += '\n';
-      }
+    // Discord allows up to 10 embeds per message, so we need to batch them
+    const maxEmbedsPerMessage = 10;
+    const dealChunks: DealWithSearchTerm[][] = [];
+    
+    for (let i = 0; i < deals.length; i += maxEmbedsPerMessage) {
+      dealChunks.push(deals.slice(i, i + maxEmbedsPerMessage));
     }
 
-    // Discord has a 2000 character limit, so we might need to split large messages
-    if (message.length > 2000) {
-      // Send a summary message first
-      const summaryMessage = `🆕 **${totalDeals} new deal${totalDeals > 1 ? 's' : ''}** found for: **${searchTerms.join(', ')}**`;
+    for (let chunkIndex = 0; chunkIndex < dealChunks.length; chunkIndex++) {
+      const chunk = dealChunks[chunkIndex];
+      const embeds = chunk.map(createDealEmbed);
+      
+      // Create summary content for the first message
+      let content = '';
+      if (chunkIndex === 0) {
+        const hotDealsCount = deals.filter(d => d.temperature === 'hot' || (d.score && d.score >= 100)).length;
+        const warmDealsCount = deals.filter(d => d.temperature === 'warm' || (d.score && d.score >= 50 && d.score < 100)).length;
+        
+        content = `🆕 **${totalDeals} new deal${totalDeals > 1 ? 's' : ''}** found for: **${searchTerms.join(', ')}**`;
+        
+        if (hotDealsCount > 0) {
+          content += `\n🔥 ${hotDealsCount} hot deal${hotDealsCount > 1 ? 's' : ''}`;
+        }
+        if (warmDealsCount > 0) {
+          content += `${hotDealsCount > 0 ? ' • ' : '\n'}⭐ ${warmDealsCount} warm deal${warmDealsCount > 1 ? 's' : ''}`;
+        }
+      }
+
+      const payload: any = { embeds };
+      if (content) payload.content = content;
 
       await request(webhookUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          content: summaryMessage
-        })
+        body: JSON.stringify(payload)
       });
 
-      // Then send individual deals
-      for (const deal of deals) {
-        let individualMessage = `🔍 **${deal.searchTerm}**: **${deal.title}**`;
-        if (deal.price) {
-          individualMessage += ` - ${deal.price}`;
-        }
-        if (deal.merchant) {
-          individualMessage += ` at ${deal.merchant}`;
-        }
-        individualMessage += `\n${deal.link}`;
-
-        await request(webhookUrl, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            content: individualMessage
-          })
-        });
+      // Small delay between messages to avoid rate limiting
+      if (chunkIndex < dealChunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-    } else {
-      // Send the combined message
-      await request(webhookUrl, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          content: message
-        })
-      });
     }
 
-    logger.info('Combined Discord message sent successfully', {
+    logger.info('Enhanced Discord message sent successfully', {
       webhookUrl: webhookUrl.substring(0, 50) + '...',
       dealCount: totalDeals,
-      searchTerms
+      searchTerms,
+      messageChunks: dealChunks.length
     });
 
   } catch (error) {

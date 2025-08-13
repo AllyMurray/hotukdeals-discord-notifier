@@ -6,8 +6,15 @@ export interface Deal {
   title: string;
   link: string;
   price?: string;
+  originalPrice?: string;
   merchant?: string;
+  merchantUrl?: string;
   timestamp?: number;
+  score?: number; // deal score/rating
+  temperature?: 'hot' | 'warm' | 'cold';
+  commentCount?: number;
+  savings?: string; // calculated savings amount
+  savingsPercentage?: number; // percentage saved
 }
 
 export async function fetchDeals(searchTerm: string): Promise<Deal[]> {
@@ -50,23 +57,69 @@ export async function fetchDeals(searchTerm: string): Promise<Deal[]> {
     const id = threadId || link;
 
     let price: string | undefined;
+    let originalPrice: string | undefined;
     let merchant: string | undefined;
+    let merchantUrl: string | undefined;
+    let score: number | undefined;
+    let temperature: 'hot' | 'warm' | 'cold' | undefined;
+    let commentCount: number | undefined;
+    let savings: string | undefined;
+    let savingsPercentage: number | undefined;
 
-    // Try to extract price and merchant from Vue.js data
+    // Try to extract price and merchant from Vue.js data (both vue2 and vue3)
     try {
-      const vueDataEl = $(el).find('[data-vue2]').first();
-      const vueDataStr = vueDataEl.attr('data-vue2');
+      let vueDataEl = $(el).find('[data-vue2]').first();
+      let vueDataStr = vueDataEl.attr('data-vue2');
+      
+      // Fallback to vue3 if vue2 not found
+      if (!vueDataStr) {
+        vueDataEl = $(el).find('[data-vue3]').first();
+        vueDataStr = vueDataEl.attr('data-vue3');
+      }
 
       if (vueDataStr) {
-        const vueData = JSON.parse(vueDataStr);
+        // Decode HTML entities for vue3 format
+        const decodedData = vueDataStr.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+        const vueData = JSON.parse(decodedData);
         const thread = vueData.props?.thread;
 
         if (thread) {
+          // Price information
           if (thread.price) {
             price = `£${thread.price}`;
           }
+          if (thread.nextBestPrice && thread.nextBestPrice > 0) {
+            originalPrice = `£${thread.nextBestPrice}`;
+          }
+          
+          // Merchant information
           if (thread.merchant?.merchantName) {
             merchant = thread.merchant.merchantName;
+          }
+          if (thread.merchant?.link) {
+            merchantUrl = thread.merchant.link;
+          }
+          
+          // Deal metadata
+          if (typeof thread.temperature === 'number') {
+            score = thread.temperature;
+            // Determine temperature based on score
+            temperature = thread.temperature >= 100 ? 'hot' : thread.temperature >= 50 ? 'warm' : 'cold';
+          }
+          
+          if (thread.commentCount) {
+            commentCount = thread.commentCount;
+          }
+          
+          // Calculate savings if we have both prices
+          if (thread.price && thread.nextBestPrice) {
+            const currentPrice = parseFloat(thread.price);
+            const originalPriceVal = parseFloat(thread.nextBestPrice);
+            if (originalPriceVal > currentPrice) {
+              const savingsAmount = originalPriceVal - currentPrice;
+              savings = `£${savingsAmount.toFixed(2)}`;
+              savingsPercentage = Math.round((savingsAmount / originalPriceVal) * 100);
+            }
           }
         }
       }
@@ -109,8 +162,15 @@ export async function fetchDeals(searchTerm: string): Promise<Deal[]> {
       title,
       link: link.startsWith('http') ? link : `https://www.hotukdeals.com${link}`,
       price,
+      originalPrice,
       merchant,
-      timestamp: Date.now()
+      merchantUrl,
+      timestamp: Date.now(),
+      score,
+      temperature,
+      commentCount,
+      savings,
+      savingsPercentage
     });
   });
 
