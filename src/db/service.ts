@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { Service, EntityConfiguration } from 'electrodb';
-import { SearchTermConfigEntity, DealEntity } from './entities';
+import { ChannelEntity, SearchTermConfigEntity, DealEntity } from './entities';
 
 // Create DynamoDB client
 const client = new DynamoDBClient({});
@@ -14,9 +14,10 @@ const configuration: EntityConfiguration = {
   table: tableName,
 };
 
-// Create the service with both entities
+// Create the service with all entities
 export const HotUKDealsService = new Service(
   {
+    channel: ChannelEntity,
     searchTermConfig: SearchTermConfigEntity,
     deal: DealEntity,
   },
@@ -24,8 +25,9 @@ export const HotUKDealsService = new Service(
 );
 
 // Re-export entities for direct access if needed
-export { SearchTermConfigEntity, DealEntity };
+export { ChannelEntity, SearchTermConfigEntity, DealEntity };
 
 // Type exports
+export type { Channel } from './entities/channel';
 export type { SearchTermConfig } from './entities/search-term-config';
 export type { Deal } from './entities/deal';

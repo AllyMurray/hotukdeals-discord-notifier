@@ -9,6 +9,9 @@
  *
  * New table:
  * - hotukdeals (HotUKDealsTable): Single table design with ElectroDB
+ *   - Channel entity: Groups search terms by webhook URL with a friendly name
+ *   - SearchTermConfig entity: References channelId instead of webhookUrl
+ *   - Deal entity: Tracks processed deals
  *
  * Usage:
  *   npx tsx scripts/migrate-to-single-table.ts [--dry-run]
@@ -19,6 +22,7 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { randomUUID } from 'crypto';
 import chalk from 'chalk';
 import ora from 'ora';
 
@@ -53,6 +57,20 @@ interface OldConfig {
   updatedAt?: string;
 }
 
+// Map webhookUrl -> channelId for migration
+const webhookToChannelMap = new Map<string, string>();
+
+// Generate a channel name from webhook URL
+function generateChannelName(webhookUrl: string, index: number): string {
+  // Try to extract something meaningful from the webhook URL
+  // Discord webhooks look like: https://discord.com/api/webhooks/{id}/{token}
+  const match = webhookUrl.match(/webhooks\/(\d+)\//);
+  if (match) {
+    return `Channel ${match[1].slice(-4)}`;
+  }
+  return `Channel ${index + 1}`;
+}
+
 // Transform old deal to new format for ElectroDB
 function transformDeal(oldDeal: OldDeal): Record<string, any> {
   return {
@@ -71,17 +89,38 @@ function transformDeal(oldDeal: OldDeal): Record<string, any> {
   };
 }
 
-// Transform old config to new format for ElectroDB
-function transformConfig(oldConfig: OldConfig): Record<string, any> {
+// Create a Channel entity from webhook URL
+function createChannel(webhookUrl: string, name: string): Record<string, any> {
+  const channelId = randomUUID();
+  webhookToChannelMap.set(webhookUrl, channelId);
+
   const now = new Date().toISOString();
   return {
-    pk: `WEBHOOK#${oldConfig.webhookUrl}`,
+    pk: `CHANNEL#${channelId}`,
+    sk: `CHANNEL#${channelId}`,
+    gsi1pk: 'CHANNELS',
+    gsi1sk: `CHANNEL#${channelId}`,
+    channelId,
+    name,
+    webhookUrl,
+    createdAt: now,
+    updatedAt: now,
+    __edb_e__: 'Channel',
+    __edb_v__: '1',
+  };
+}
+
+// Transform old config to new format for ElectroDB (using channelId)
+function transformConfig(oldConfig: OldConfig, channelId: string): Record<string, any> {
+  const now = new Date().toISOString();
+  return {
+    pk: `CHANNEL#${channelId}`,
     sk: `CONFIG#${oldConfig.searchTerm}`,
     gsi1pk: 'CONFIGS',
-    gsi1sk: `${oldConfig.webhookUrl}#${oldConfig.searchTerm}`,
+    gsi1sk: `${channelId}#${oldConfig.searchTerm}`,
     gsi2pk: `SEARCHTERM#${oldConfig.searchTerm}`,
-    gsi2sk: `WEBHOOK#${oldConfig.webhookUrl}`,
-    webhookUrl: oldConfig.webhookUrl,
+    gsi2sk: `CHANNEL#${channelId}`,
+    channelId,
     searchTerm: oldConfig.searchTerm,
     enabled: oldConfig.enabled !== false,
     excludeKeywords: oldConfig.excludeKeywords || [],
@@ -153,9 +192,7 @@ async function migrateDeals(): Promise<number> {
     }
 
     if (failed > 0) {
-      migrateSpinner.warn(
-        chalk.yellow(`Migrated ${migrated} deals, ${failed} failed`)
-      );
+      migrateSpinner.warn(chalk.yellow(`Migrated ${migrated} deals, ${failed} failed`));
     } else {
       migrateSpinner.succeed(
         chalk.green(`Successfully migrated ${migrated} deals${isDryRun ? ' (dry run)' : ''}`)
@@ -170,7 +207,7 @@ async function migrateDeals(): Promise<number> {
   }
 }
 
-async function migrateConfigs(): Promise<number> {
+async function migrateConfigs(): Promise<{ channels: number; configs: number }> {
   const spinner = ora('Scanning old config table...').start();
 
   try {
@@ -178,22 +215,62 @@ async function migrateConfigs(): Promise<number> {
     spinner.succeed(`Found ${oldConfigs.length} configs to migrate`);
 
     if (oldConfigs.length === 0) {
-      return 0;
+      return { channels: 0, configs: 0 };
     }
 
-    const migrateSpinner = ora('Migrating configs...').start();
-    let migrated = 0;
-    let failed = 0;
+    // Step 1: Create channels for each unique webhook URL
+    const uniqueWebhooks = [...new Set(oldConfigs.map((c) => c.webhookUrl))];
+    const channelSpinner = ora(`Creating ${uniqueWebhooks.length} channels...`).start();
+    let channelsCreated = 0;
+
+    for (let i = 0; i < uniqueWebhooks.length; i++) {
+      const webhookUrl = uniqueWebhooks[i];
+      const channelName = generateChannelName(webhookUrl, i);
+
+      try {
+        const channel = createChannel(webhookUrl, channelName);
+
+        if (isDryRun) {
+          console.log(chalk.dim(`  [DRY RUN] Would create channel: ${channelName}`));
+          // Still add to map for config migration
+          webhookToChannelMap.set(webhookUrl, channel.channelId);
+        } else {
+          await ddb.send(
+            new PutCommand({
+              TableName: NEW_TABLE,
+              Item: channel,
+            })
+          );
+        }
+        channelsCreated++;
+      } catch (error) {
+        console.error(chalk.red(`  Failed to create channel for webhook:`, error));
+      }
+    }
+
+    channelSpinner.succeed(
+      chalk.green(`Created ${channelsCreated} channels${isDryRun ? ' (dry run)' : ''}`)
+    );
+
+    // Step 2: Migrate configs with channelId
+    const configSpinner = ora('Migrating configs...').start();
+    let configsMigrated = 0;
+    let configsFailed = 0;
 
     for (const oldConfig of oldConfigs) {
       try {
-        const newConfig = transformConfig(oldConfig);
+        const channelId = webhookToChannelMap.get(oldConfig.webhookUrl);
+        if (!channelId) {
+          console.error(chalk.red(`  No channel found for webhook: ${oldConfig.webhookUrl}`));
+          configsFailed++;
+          continue;
+        }
+
+        const newConfig = transformConfig(oldConfig, channelId);
 
         if (isDryRun) {
           console.log(
-            chalk.dim(
-              `  [DRY RUN] Would migrate config: ${oldConfig.searchTerm} -> ${oldConfig.webhookUrl.substring(0, 50)}...`
-            )
+            chalk.dim(`  [DRY RUN] Would migrate config: ${oldConfig.searchTerm} -> channel ${channelId.slice(0, 8)}...`)
           );
         } else {
           await ddb.send(
@@ -203,30 +280,26 @@ async function migrateConfigs(): Promise<number> {
             })
           );
         }
-        migrated++;
+        configsMigrated++;
       } catch (error) {
-        failed++;
-        console.error(
-          chalk.red(`  Failed to migrate config ${oldConfig.searchTerm}:`, error)
-        );
+        configsFailed++;
+        console.error(chalk.red(`  Failed to migrate config ${oldConfig.searchTerm}:`, error));
       }
     }
 
-    if (failed > 0) {
-      migrateSpinner.warn(
-        chalk.yellow(`Migrated ${migrated} configs, ${failed} failed`)
-      );
+    if (configsFailed > 0) {
+      configSpinner.warn(chalk.yellow(`Migrated ${configsMigrated} configs, ${configsFailed} failed`));
     } else {
-      migrateSpinner.succeed(
-        chalk.green(`Successfully migrated ${migrated} configs${isDryRun ? ' (dry run)' : ''}`)
+      configSpinner.succeed(
+        chalk.green(`Successfully migrated ${configsMigrated} configs${isDryRun ? ' (dry run)' : ''}`)
       );
     }
 
-    return migrated;
+    return { channels: channelsCreated, configs: configsMigrated };
   } catch (error) {
     spinner.fail(chalk.red('Error scanning old config table'));
     console.error(error);
-    return 0;
+    return { channels: 0, configs: 0 };
   }
 }
 
@@ -248,16 +321,17 @@ async function main() {
   console.log(chalk.dim('-'.repeat(30)));
   const dealsCount = await migrateDeals();
 
-  // Migrate configs
-  console.log(chalk.bold('\n Migrating Configs'));
+  // Migrate configs (creates channels first)
+  console.log(chalk.bold('\n Migrating Channels & Configs'));
   console.log(chalk.dim('-'.repeat(30)));
-  const configsCount = await migrateConfigs();
+  const { channels: channelsCount, configs: configsCount } = await migrateConfigs();
 
   // Summary
   console.log(chalk.bold.blue('\n Migration Summary'));
   console.log(chalk.dim('='.repeat(50)));
-  console.log(`  Deals migrated:   ${chalk.green(dealsCount)}`);
-  console.log(`  Configs migrated: ${chalk.green(configsCount)}`);
+  console.log(`  Deals migrated:    ${chalk.green(dealsCount)}`);
+  console.log(`  Channels created:  ${chalk.green(channelsCount)}`);
+  console.log(`  Configs migrated:  ${chalk.green(configsCount)}`);
 
   if (isDryRun) {
     console.log(chalk.yellow('\n This was a dry run. Run without --dry-run to perform the actual migration.'));
@@ -265,9 +339,10 @@ async function main() {
     console.log(chalk.green('\n Migration complete!'));
     console.log(chalk.dim('\n Next steps:'));
     console.log(chalk.dim('  1. Verify the data in the new table'));
-    console.log(chalk.dim('  2. Deploy the updated Lambda with: sst deploy'));
-    console.log(chalk.dim('  3. Monitor the application for any issues'));
-    console.log(chalk.dim('  4. Once verified, you can delete the old tables'));
+    console.log(chalk.dim('  2. Rename channels using: npx tsx scripts/manage-config.ts channel update "Channel XXXX" --name "My Channel"'));
+    console.log(chalk.dim('  3. Deploy the updated Lambda with: sst deploy'));
+    console.log(chalk.dim('  4. Monitor the application for any issues'));
+    console.log(chalk.dim('  5. Once verified, you can delete the old tables'));
   }
 }
 

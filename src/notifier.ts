@@ -5,10 +5,10 @@ import middy from '@middy/core';
 import { request } from 'undici';
 import { fetchDeals, Deal } from './feed-parser';
 import {
-  getEnabledConfigsGroupedByWebhook,
+  getEnabledConfigsGroupedByChannel,
   dealExists,
   createDeal,
-  GroupedWebhookConfig,
+  ChannelWithConfigs,
   SearchTermConfig,
 } from './db';
 
@@ -33,7 +33,7 @@ interface DealWithSearchTerm {
 
 // Simple in-memory cache (optional optimization)
 let configCache: {
-  configs: GroupedWebhookConfig[];
+  configs: ChannelWithConfigs[];
   lastFetch: number;
   ttl: number;
 } = {
@@ -42,8 +42,8 @@ let configCache: {
   ttl: 5 * 60 * 1000, // 5 minutes cache
 };
 
-// Get all search term configurations from DynamoDB (grouped by webhook)
-const getGroupedConfigs = async (): Promise<GroupedWebhookConfig[]> => {
+// Get all search term configurations from DynamoDB (grouped by channel)
+const getGroupedConfigs = async (): Promise<ChannelWithConfigs[]> => {
   // Optional: Use cache to reduce DynamoDB calls
   const now = Date.now();
   if (configCache.configs.length > 0 && now - configCache.lastFetch < configCache.ttl) {
@@ -52,7 +52,7 @@ const getGroupedConfigs = async (): Promise<GroupedWebhookConfig[]> => {
   }
 
   try {
-    const groupedConfigs = await getEnabledConfigsGroupedByWebhook();
+    const groupedConfigs = await getEnabledConfigsGroupedByChannel();
 
     // Update cache
     configCache.configs = groupedConfigs;
@@ -109,12 +109,13 @@ const filterDeal = (deal: Deal, config: SearchTermConfig): boolean => {
   return true;
 };
 
-// Helper function to process multiple search terms for a webhook
-const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> => {
-  const { webhookUrl, configs } = config;
+// Helper function to process multiple search terms for a channel
+const processChannelFeeds = async (channelWithConfigs: ChannelWithConfigs): Promise<void> => {
+  const { channel, configs } = channelWithConfigs;
   const searchTerms = configs.map((c) => c.searchTerm);
-  logger.info('Processing search terms for webhook', {
-    webhookUrl: webhookUrl.substring(0, 50) + '...',
+  logger.info('Processing search terms for channel', {
+    channelName: channel.name,
+    channelId: channel.channelId,
     searchTerms,
   });
 
@@ -174,17 +175,18 @@ const processWebhookFeeds = async (config: GroupedWebhookConfig): Promise<void> 
 
     // Send combined message if we have new deals
     if (allNewDeals.length > 0) {
-      await sendCombinedDiscordMessage(webhookUrl, allNewDeals);
+      await sendCombinedDiscordMessage(channel.webhookUrl, allNewDeals);
     } else {
-      logger.info('No new deals found for webhook', {
-        webhookUrl: webhookUrl.substring(0, 50) + '...',
+      logger.info('No new deals found for channel', {
+        channelName: channel.name,
         searchTerms,
       });
     }
   } catch (error) {
-    logger.error('Error processing deals for webhook', {
+    logger.error('Error processing deals for channel', {
       error,
-      webhookUrl: webhookUrl.substring(0, 50) + '...',
+      channelName: channel.name,
+      channelId: channel.channelId,
       searchTerms,
     });
   }
@@ -351,7 +353,7 @@ const sendCombinedDiscordMessage = async (
 
 // Base Lambda handler
 const baseHandler: Handler = async () => {
-  // Get all search term configurations grouped by webhook
+  // Get all search term configurations grouped by channel
   const groupedConfigs = await getGroupedConfigs();
 
   if (groupedConfigs.length === 0) {
@@ -361,17 +363,17 @@ const baseHandler: Handler = async () => {
 
   const totalSearchTerms = groupedConfigs.reduce((acc, g) => acc + g.configs.length, 0);
 
-  logger.info('Processing deals for grouped webhook configurations', {
-    webhookCount: groupedConfigs.length,
+  logger.info('Processing deals for grouped channel configurations', {
+    channelCount: groupedConfigs.length,
     totalSearchTerms,
-    groups: groupedConfigs.map((g) => ({
-      webhook: g.webhookUrl.substring(0, 50) + '...',
+    channels: groupedConfigs.map((g) => ({
+      name: g.channel.name,
       searchTerms: g.configs.map((c) => c.searchTerm),
     })),
   });
 
-  // Process all webhook groups concurrently
-  await Promise.all(groupedConfigs.map(processWebhookFeeds));
+  // Process all channels concurrently
+  await Promise.all(groupedConfigs.map(processChannelFeeds));
 };
 
 export const handler = middy(baseHandler).use(injectLambdaContext(logger));

@@ -7,7 +7,7 @@ export const SearchTermConfigEntity = new Entity({
     service: 'hotukdeals',
   },
   attributes: {
-    webhookUrl: {
+    channelId: {
       type: 'string',
       required: true,
     },
@@ -49,12 +49,12 @@ export const SearchTermConfigEntity = new Entity({
     },
   },
   indexes: {
-    // Primary access pattern: Get all configs for a webhook URL
-    byWebhook: {
+    // Primary access pattern: Get all configs for a channel
+    byChannel: {
       pk: {
         field: 'pk',
-        composite: ['webhookUrl'],
-        template: 'WEBHOOK#${webhookUrl}',
+        composite: ['channelId'],
+        template: 'CHANNEL#${channelId}',
       },
       sk: {
         field: 'sk',
@@ -72,8 +72,8 @@ export const SearchTermConfigEntity = new Entity({
       },
       sk: {
         field: 'gsi1sk',
-        composite: ['webhookUrl', 'searchTerm'],
-        template: '${webhookUrl}#${searchTerm}',
+        composite: ['channelId', 'searchTerm'],
+        template: '${channelId}#${searchTerm}',
       },
     },
     // GSI for looking up config by search term
@@ -86,15 +86,15 @@ export const SearchTermConfigEntity = new Entity({
       },
       sk: {
         field: 'gsi2sk',
-        composite: ['webhookUrl'],
-        template: 'WEBHOOK#${webhookUrl}',
+        composite: ['channelId'],
+        template: 'CHANNEL#${channelId}',
       },
     },
   },
 });
 
 export type SearchTermConfig = {
-  webhookUrl: string;
+  channelId: string;
   searchTerm: string;
   enabled: boolean;
   excludeKeywords: string[];
