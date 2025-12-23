@@ -1,25 +1,27 @@
-const dealsTable = new sst.aws.Dynamo("DealsTable", {
-  fields: {
-    id: "string",
-  },
-  primaryIndex: { hashKey: "id" },
-  transform: {
-    table(args, opts, name) {
-        args.name = 'hotukdeals-processed-deals'
-    },
-  }
-});
+// Single table design for HotUKDeals notifier
+// Uses ElectroDB with the following access patterns:
+// - SearchTermConfig: Query by webhookUrl (PK), get all configs via GSI1, lookup by searchTerm via GSI2
+// - Deal: Query by dealId (PK)
 
-const configTable = new sst.aws.Dynamo("ConfigTable", {
+const hotukdealsTable = new sst.aws.Dynamo("HotUKDealsTable", {
   fields: {
-    searchTerm: "string",
+    pk: "string",      // Partition key
+    sk: "string",      // Sort key
+    gsi1pk: "string",  // GSI1 partition key (for listing all configs)
+    gsi1sk: "string",  // GSI1 sort key
+    gsi2pk: "string",  // GSI2 partition key (for lookup by search term)
+    gsi2sk: "string",  // GSI2 sort key
   },
-  primaryIndex: { hashKey: "searchTerm" },
+  primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+  globalIndexes: {
+    gsi1: { hashKey: "gsi1pk", rangeKey: "gsi1sk" },
+    gsi2: { hashKey: "gsi2pk", rangeKey: "gsi2sk" },
+  },
   transform: {
-    table(args, opts, name) {
-        args.name = 'hotukdeals-config'
+    table(args) {
+      args.name = 'hotukdeals';
     },
-  }
+  },
 });
 
 const notifierLambda = new sst.aws.Cron("NotifierLambda", {
@@ -28,21 +30,25 @@ const notifierLambda = new sst.aws.Cron("NotifierLambda", {
     handler: "src/notifier.handler",
     timeout: "30 seconds",
     environment: {
-      DYNAMODB_TABLE_NAME: dealsTable.name,
-      CONFIG_TABLE_NAME: configTable.name,
+      TABLE_NAME: hotukdealsTable.name,
     },
     permissions: [
       {
-        actions: ["dynamodb:GetItem", "dynamodb:PutItem"],
-        resources: [dealsTable.arn],
-      },
-      {
-        actions: ["dynamodb:Scan"],
-        resources: [configTable.arn],
+        actions: [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:DeleteItem",
+          "dynamodb:UpdateItem",
+        ],
+        resources: [
+          hotukdealsTable.arn,
+          $interpolate`${hotukdealsTable.arn}/index/*`,
+        ],
       },
     ],
   },
   schedule: "rate(1 minute)",
 });
 
-export { dealsTable, configTable, notifierLambda };
+export { hotukdealsTable, notifierLambda };

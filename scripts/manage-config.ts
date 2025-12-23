@@ -1,24 +1,21 @@
 #!/usr/bin/env node
 
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, ScanCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 
-const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+// Set table name before importing db module
+process.env.TABLE_NAME = process.env.TABLE_NAME || 'hotukdeals';
 
-// Get table name from environment or use default
-const configTableName = process.env.CONFIG_TABLE_NAME || 'hotukdeals-config';
-
-interface SearchTermConfig {
-  searchTerm: string;
-  webhookUrl: string;
-  enabled?: boolean;
-  excludeKeywords?: string[];
-  includeKeywords?: string[];
-  caseSensitive?: boolean;
-}
+import {
+  getAllConfigs,
+  getConfigsByWebhook,
+  getConfigBySearchTerm,
+  upsertConfig,
+  deleteConfig,
+  deleteConfigsByWebhook,
+  SearchTermConfig,
+} from '../src/db';
 
 interface GroupedWebhookConfig {
   webhookUrl: string;
@@ -33,43 +30,36 @@ const formatWebhookUrl = (url: string): string => {
 };
 
 // Add or update a search term configuration
-export async function addSearchTermConfig(config: SearchTermConfig): Promise<void> {
+export async function addSearchTermConfig(config: {
+  searchTerm: string;
+  webhookUrl: string;
+  enabled?: boolean;
+  excludeKeywords?: string[];
+  includeKeywords?: string[];
+  caseSensitive?: boolean;
+}): Promise<void> {
   const spinner = ora('Adding/updating search term configuration...').start();
 
   try {
-    const item: any = {
+    await upsertConfig({
       searchTerm: config.searchTerm,
       webhookUrl: config.webhookUrl,
-      enabled: config.enabled !== false, // default to true
-      updatedAt: new Date().toISOString()
-    };
-
-    // Only add filtering fields if they are provided
-    if (config.excludeKeywords && config.excludeKeywords.length > 0) {
-      item.excludeKeywords = config.excludeKeywords;
-    }
-    if (config.includeKeywords && config.includeKeywords.length > 0) {
-      item.includeKeywords = config.includeKeywords;
-    }
-    if (config.caseSensitive !== undefined) {
-      item.caseSensitive = config.caseSensitive;
-    }
-
-    await ddb.send(new PutCommand({
-      TableName: configTableName,
-      Item: item
-    }));
+      enabled: config.enabled !== false,
+      excludeKeywords: config.excludeKeywords || [],
+      includeKeywords: config.includeKeywords || [],
+      caseSensitive: config.caseSensitive || false,
+    });
 
     spinner.succeed(chalk.green(`Added/updated config for search term: ${chalk.bold(config.searchTerm)}`));
 
     if (config.excludeKeywords && config.excludeKeywords.length > 0) {
-      console.log(chalk.red(`   🚫 Excluding: ${config.excludeKeywords.join(', ')}`));
+      console.log(chalk.red(`   Excluding: ${config.excludeKeywords.join(', ')}`));
     }
     if (config.includeKeywords && config.includeKeywords.length > 0) {
-      console.log(chalk.green(`   ✅ Including: ${config.includeKeywords.join(', ')}`));
+      console.log(chalk.green(`   Including: ${config.includeKeywords.join(', ')}`));
     }
     if (config.caseSensitive) {
-      console.log(chalk.blue(`   🔤 Case sensitive: enabled`));
+      console.log(chalk.blue(`   Case sensitive: enabled`));
     }
   } catch (error) {
     spinner.fail(chalk.red(`Error adding config for ${config.searchTerm}`));
@@ -78,18 +68,22 @@ export async function addSearchTermConfig(config: SearchTermConfig): Promise<voi
 }
 
 // Add multiple search terms to a single webhook URL
-export async function addMultipleSearchTerms(webhookUrl: string, searchTerms: string[], enabled: boolean = true): Promise<void> {
+export async function addMultipleSearchTerms(
+  webhookUrl: string,
+  searchTerms: string[],
+  enabled: boolean = true
+): Promise<void> {
   const spinner = ora(`Adding ${searchTerms.length} search terms to webhook...`).start();
 
   try {
     const results = await Promise.allSettled(
-      searchTerms.map(searchTerm =>
-        addSearchTermConfig({ searchTerm, webhookUrl, enabled })
+      searchTerms.map((searchTerm) =>
+        upsertConfig({ searchTerm, webhookUrl, enabled })
       )
     );
 
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    const successful = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
 
     if (failed === 0) {
       spinner.succeed(chalk.green(`Successfully added ${successful} search terms`));
@@ -107,48 +101,37 @@ export async function listSearchTermConfigs(): Promise<SearchTermConfig[]> {
   const spinner = ora('Fetching search term configurations...').start();
 
   try {
-    const result = await ddb.send(new ScanCommand({
-      TableName: configTableName
-    }));
-
-    const configs = (result.Items || []).map(item => ({
-      searchTerm: item.searchTerm,
-      webhookUrl: item.webhookUrl,
-      enabled: item.enabled,
-      excludeKeywords: item.excludeKeywords || [],
-      includeKeywords: item.includeKeywords || [],
-      caseSensitive: item.caseSensitive || false
-    }));
+    const configs = await getAllConfigs();
 
     spinner.succeed(chalk.green('Configurations retrieved'));
 
-    console.log(chalk.bold.blue('\n📋 Current search term configurations:'));
-    console.log(chalk.dim('═'.repeat(60)));
+    console.log(chalk.bold.blue('\n Current search term configurations:'));
+    console.log(chalk.dim('='.repeat(60)));
 
     if (configs.length === 0) {
       console.log(chalk.yellow('   No configurations found'));
       return configs;
     }
 
-    configs.forEach(config => {
-      const status = config.enabled ? chalk.green('✅ enabled') : chalk.red('❌ disabled');
-      console.log(`${chalk.cyan('🔍')} ${chalk.bold(config.searchTerm)} (${status})`);
-      console.log(chalk.dim(`   📡 Webhook: ${formatWebhookUrl(config.webhookUrl)}`));
+    configs.forEach((config) => {
+      const status = config.enabled ? chalk.green('enabled') : chalk.red('disabled');
+      console.log(`${chalk.cyan('Search:')} ${chalk.bold(config.searchTerm)} (${status})`);
+      console.log(chalk.dim(`   Webhook: ${formatWebhookUrl(config.webhookUrl)}`));
 
       if (config.excludeKeywords && config.excludeKeywords.length > 0) {
-        console.log(chalk.red(`   🚫 Excluding: ${config.excludeKeywords.join(', ')}`));
+        console.log(chalk.red(`   Excluding: ${config.excludeKeywords.join(', ')}`));
       }
       if (config.includeKeywords && config.includeKeywords.length > 0) {
-        console.log(chalk.green(`   ✅ Including: ${config.includeKeywords.join(', ')}`));
+        console.log(chalk.green(`   Including: ${config.includeKeywords.join(', ')}`));
       }
       if (config.caseSensitive) {
-        console.log(chalk.blue(`   🔤 Case sensitive: enabled`));
+        console.log(chalk.blue(`   Case sensitive: enabled`));
       }
 
       console.log('');
     });
 
-    console.log(chalk.dim(`📊 Total configurations: ${configs.length}`));
+    console.log(chalk.dim(`Total configurations: ${configs.length}`));
     return configs;
   } catch (error) {
     spinner.fail(chalk.red('Error listing configurations'));
@@ -162,44 +145,36 @@ export async function listGroupedConfigs(): Promise<GroupedWebhookConfig[]> {
   const spinner = ora('Fetching grouped configurations...').start();
 
   try {
-    const result = await ddb.send(new ScanCommand({
-      TableName: configTableName
-    }));
-
-    const configs = (result.Items || []).map(item => ({
-      searchTerm: item.searchTerm,
-      webhookUrl: item.webhookUrl,
-      enabled: item.enabled,
-      excludeKeywords: item.excludeKeywords || [],
-      includeKeywords: item.includeKeywords || [],
-      caseSensitive: item.caseSensitive || false
-    }));
+    const configs = await getAllConfigs();
 
     // Group by webhook URL
-    const grouped = configs.reduce((acc, config) => {
-      if (!acc[config.webhookUrl]) {
-        acc[config.webhookUrl] = {
-          webhookUrl: config.webhookUrl,
-          searchTerms: [],
-          enabledCount: 0,
-          disabledCount: 0
-        };
-      }
-      acc[config.webhookUrl].searchTerms.push(config.searchTerm);
-      if (config.enabled) {
-        acc[config.webhookUrl].enabledCount++;
-      } else {
-        acc[config.webhookUrl].disabledCount++;
-      }
-      return acc;
-    }, {} as Record<string, GroupedWebhookConfig>);
+    const grouped = configs.reduce(
+      (acc, config) => {
+        if (!acc[config.webhookUrl]) {
+          acc[config.webhookUrl] = {
+            webhookUrl: config.webhookUrl,
+            searchTerms: [],
+            enabledCount: 0,
+            disabledCount: 0,
+          };
+        }
+        acc[config.webhookUrl].searchTerms.push(config.searchTerm);
+        if (config.enabled) {
+          acc[config.webhookUrl].enabledCount++;
+        } else {
+          acc[config.webhookUrl].disabledCount++;
+        }
+        return acc;
+      },
+      {} as Record<string, GroupedWebhookConfig>
+    );
 
     const groupedConfigs = Object.values(grouped);
 
     spinner.succeed(chalk.green('Grouped configurations retrieved'));
 
-    console.log(chalk.bold.blue('\n📋 Configurations grouped by webhook URL:'));
-    console.log(chalk.dim('═'.repeat(60)));
+    console.log(chalk.bold.blue('\n Configurations grouped by webhook URL:'));
+    console.log(chalk.dim('='.repeat(60)));
 
     if (groupedConfigs.length === 0) {
       console.log(chalk.yellow('   No configurations found'));
@@ -207,14 +182,18 @@ export async function listGroupedConfigs(): Promise<GroupedWebhookConfig[]> {
     }
 
     groupedConfigs.forEach((group, index) => {
-      console.log(chalk.magenta(`\n🌐 Webhook ${index + 1}:`));
-      console.log(chalk.dim(`   📡 URL: ${formatWebhookUrl(group.webhookUrl)}`));
-      console.log(chalk.dim(`   📊 Search terms: ${group.searchTerms.length} total (${chalk.green(group.enabledCount)} enabled, ${chalk.red(group.disabledCount)} disabled)`));
-      console.log(chalk.cyan(`   🔍 Terms: ${group.searchTerms.join(', ')}`));
+      console.log(chalk.magenta(`\n Webhook ${index + 1}:`));
+      console.log(chalk.dim(`   URL: ${formatWebhookUrl(group.webhookUrl)}`));
+      console.log(
+        chalk.dim(
+          `   Search terms: ${group.searchTerms.length} total (${chalk.green(group.enabledCount)} enabled, ${chalk.red(group.disabledCount)} disabled)`
+        )
+      );
+      console.log(chalk.cyan(`   Terms: ${group.searchTerms.join(', ')}`));
     });
 
-    console.log(chalk.dim(`\n📊 Total webhooks: ${groupedConfigs.length}`));
-    console.log(chalk.dim(`📊 Total search terms: ${configs.length}`));
+    console.log(chalk.dim(`\n Total webhooks: ${groupedConfigs.length}`));
+    console.log(chalk.dim(`Total search terms: ${configs.length}`));
 
     return groupedConfigs;
   } catch (error) {
@@ -229,10 +208,15 @@ export async function removeSearchTermConfig(searchTerm: string): Promise<void> 
   const spinner = ora(`Removing search term: ${searchTerm}...`).start();
 
   try {
-    await ddb.send(new DeleteCommand({
-      TableName: configTableName,
-      Key: { searchTerm }
-    }));
+    // First find the config to get the webhookUrl
+    const config = await getConfigBySearchTerm(searchTerm);
+
+    if (!config) {
+      spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
+      return;
+    }
+
+    await deleteConfig(config.webhookUrl, searchTerm);
 
     spinner.succeed(chalk.green(`Removed config for search term: ${chalk.bold(searchTerm)}`));
   } catch (error) {
@@ -246,42 +230,18 @@ export async function removeWebhookConfigs(webhookUrl: string): Promise<void> {
   const spinner = ora('Finding search terms for webhook...').start();
 
   try {
-    // First, get all search terms for this webhook
-    const result = await ddb.send(new ScanCommand({
-      TableName: configTableName,
-      FilterExpression: 'webhookUrl = :webhook',
-      ExpressionAttributeValues: {
-        ':webhook': webhookUrl
-      }
-    }));
+    const configs = await getConfigsByWebhook(webhookUrl);
 
-    const searchTerms = (result.Items || []).map(item => item.searchTerm);
-
-    if (searchTerms.length === 0) {
+    if (configs.length === 0) {
       spinner.warn(chalk.yellow('No search terms found for this webhook URL'));
       return;
     }
 
-    spinner.text = `Removing ${searchTerms.length} search terms for webhook...`;
+    spinner.text = `Removing ${configs.length} search terms for webhook...`;
 
-    // Remove all search terms for this webhook
-    const results = await Promise.allSettled(
-      searchTerms.map(searchTerm =>
-        ddb.send(new DeleteCommand({
-          TableName: configTableName,
-          Key: { searchTerm }
-        }))
-      )
-    );
+    const searchTerms = await deleteConfigsByWebhook(webhookUrl);
 
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
-
-    if (failed === 0) {
-      spinner.succeed(chalk.green(`Successfully removed ${successful} search terms`));
-    } else {
-      spinner.warn(chalk.yellow(`Removed ${successful} search terms, ${failed} failed`));
-    }
+    spinner.succeed(chalk.green(`Successfully removed ${searchTerms.length} search terms`));
   } catch (error) {
     spinner.fail(chalk.red('Error removing webhook configurations'));
     console.error(chalk.red(error));
@@ -293,16 +253,8 @@ export async function toggleSearchTermConfig(searchTerm: string): Promise<void> 
   const spinner = ora(`Toggling search term: ${searchTerm}...`).start();
 
   try {
-    // First get the current config
-    const result = await ddb.send(new ScanCommand({
-      TableName: configTableName,
-      FilterExpression: 'searchTerm = :term',
-      ExpressionAttributeValues: {
-        ':term': searchTerm
-      }
-    }));
+    const config = await getConfigBySearchTerm(searchTerm);
 
-    const config = result.Items?.[0];
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
       return;
@@ -310,28 +262,10 @@ export async function toggleSearchTermConfig(searchTerm: string): Promise<void> 
 
     const newEnabled = !config.enabled;
 
-    const item: any = {
-      searchTerm: config.searchTerm,
-      webhookUrl: config.webhookUrl,
+    await upsertConfig({
+      ...config,
       enabled: newEnabled,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Preserve existing filtering settings
-    if (config.excludeKeywords) {
-      item.excludeKeywords = config.excludeKeywords;
-    }
-    if (config.includeKeywords) {
-      item.includeKeywords = config.includeKeywords;
-    }
-    if (config.caseSensitive !== undefined) {
-      item.caseSensitive = config.caseSensitive;
-    }
-
-    await ddb.send(new PutCommand({
-      TableName: configTableName,
-      Item: item
-    }));
+    });
 
     const status = newEnabled ? chalk.green('enabled') : chalk.red('disabled');
     spinner.succeed(chalk.green(`${status} search term: ${chalk.bold(searchTerm)}`));
@@ -342,84 +276,60 @@ export async function toggleSearchTermConfig(searchTerm: string): Promise<void> 
 }
 
 // Remove specific filters from a search term
-export async function removeFiltersFromSearchTerm(searchTerm: string, removeExcludeKeywords?: string[], removeIncludeKeywords?: string[]): Promise<void> {
+export async function removeFiltersFromSearchTerm(
+  searchTerm: string,
+  removeExcludeKeywords?: string[],
+  removeIncludeKeywords?: string[]
+): Promise<void> {
   const spinner = ora(`Removing filters from search term: ${searchTerm}...`).start();
 
   try {
-    // First get the current config
-    const result = await ddb.send(new ScanCommand({
-      TableName: configTableName,
-      FilterExpression: 'searchTerm = :term',
-      ExpressionAttributeValues: {
-        ':term': searchTerm
-      }
-    }));
+    const config = await getConfigBySearchTerm(searchTerm);
 
-    const config = result.Items?.[0];
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
       return;
     }
 
-    const item: any = {
-      searchTerm: config.searchTerm,
-      webhookUrl: config.webhookUrl,
-      enabled: config.enabled,
-      updatedAt: new Date().toISOString()
-    };
+    let newExcludeKeywords = config.excludeKeywords || [];
+    let newIncludeKeywords = config.includeKeywords || [];
 
     // Remove specific exclusions
     if (removeExcludeKeywords && removeExcludeKeywords.length > 0) {
-      const existingExcludes = config.excludeKeywords || [];
-      const filteredExcludes = existingExcludes.filter((keyword: string) =>
-        !removeExcludeKeywords.includes(keyword)
+      newExcludeKeywords = newExcludeKeywords.filter(
+        (keyword) => !removeExcludeKeywords.includes(keyword)
       );
-      if (filteredExcludes.length > 0) {
-        item.excludeKeywords = filteredExcludes;
-      }
-    } else if (config.excludeKeywords) {
-      item.excludeKeywords = config.excludeKeywords;
     }
 
     // Remove specific inclusions
     if (removeIncludeKeywords && removeIncludeKeywords.length > 0) {
-      const existingIncludes = config.includeKeywords || [];
-      const filteredIncludes = existingIncludes.filter((keyword: string) =>
-        !removeIncludeKeywords.includes(keyword)
+      newIncludeKeywords = newIncludeKeywords.filter(
+        (keyword) => !removeIncludeKeywords.includes(keyword)
       );
-      if (filteredIncludes.length > 0) {
-        item.includeKeywords = filteredIncludes;
-      }
-    } else if (config.includeKeywords) {
-      item.includeKeywords = config.includeKeywords;
     }
 
-    // Preserve case sensitivity
-    if (config.caseSensitive !== undefined) {
-      item.caseSensitive = config.caseSensitive;
-    }
-
-    await ddb.send(new PutCommand({
-      TableName: configTableName,
-      Item: item
-    }));
+    await upsertConfig({
+      ...config,
+      excludeKeywords: newExcludeKeywords,
+      includeKeywords: newIncludeKeywords,
+    });
 
     spinner.succeed(chalk.green(`Removed filters from search term: ${chalk.bold(searchTerm)}`));
 
     // Show what was removed
     if (removeExcludeKeywords && removeExcludeKeywords.length > 0) {
-      console.log(chalk.red(`   ➖ Removed exclusions: ${removeExcludeKeywords.join(', ')}`));
+      console.log(chalk.red(`   Removed exclusions: ${removeExcludeKeywords.join(', ')}`));
     }
     if (removeIncludeKeywords && removeIncludeKeywords.length > 0) {
-      console.log(chalk.green(`   ➖ Removed inclusions: ${removeIncludeKeywords.join(', ')}`));
+      console.log(chalk.green(`   Removed inclusions: ${removeIncludeKeywords.join(', ')}`));
     }
 
     // Show current filters
-    if (item.excludeKeywords && item.excludeKeywords.length > 0) {
-      console.log(chalk.red(`   🚫 Still excluding: ${item.excludeKeywords.join(', ')}`));
+    if (newExcludeKeywords.length > 0) {
+      console.log(chalk.red(`   Still excluding: ${newExcludeKeywords.join(', ')}`));
     }
-    if (item.includeKeywords && item.includeKeywords.length > 0) {
-      console.log(chalk.green(`   ✅ Still including: ${item.includeKeywords.join(', ')}`));
+    if (newIncludeKeywords.length > 0) {
+      console.log(chalk.green(`   Still including: ${newIncludeKeywords.join(', ')}`));
     }
   } catch (error) {
     spinner.fail(chalk.red(`Error removing filters from ${searchTerm}`));
@@ -428,74 +338,51 @@ export async function removeFiltersFromSearchTerm(searchTerm: string, removeExcl
 }
 
 // Add or update filters for a search term
-export async function addFiltersToSearchTerm(searchTerm: string, excludeKeywords?: string[], includeKeywords?: string[], caseSensitive?: boolean): Promise<void> {
+export async function addFiltersToSearchTerm(
+  searchTerm: string,
+  excludeKeywords?: string[],
+  includeKeywords?: string[],
+  caseSensitive?: boolean
+): Promise<void> {
   const spinner = ora(`Updating filters for search term: ${searchTerm}...`).start();
 
   try {
-    // First get the current config
-    const result = await ddb.send(new ScanCommand({
-      TableName: configTableName,
-      FilterExpression: 'searchTerm = :term',
-      ExpressionAttributeValues: {
-        ':term': searchTerm
-      }
-    }));
+    const config = await getConfigBySearchTerm(searchTerm);
 
-    const config = result.Items?.[0];
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
       return;
     }
 
-    const item: any = {
-      searchTerm: config.searchTerm,
-      webhookUrl: config.webhookUrl,
-      enabled: config.enabled,
-      updatedAt: new Date().toISOString()
-    };
-
     // Merge filtering fields with existing ones
-    if (excludeKeywords && excludeKeywords.length > 0) {
-      const existingExcludes = config.excludeKeywords || [];
-      const newExcludes = [...new Set([...existingExcludes, ...excludeKeywords])]; // Remove duplicates
-      item.excludeKeywords = newExcludes;
-    } else if (config.excludeKeywords) {
-      // Preserve existing excludes if no new ones provided
-      item.excludeKeywords = config.excludeKeywords;
-    }
+    const newExcludeKeywords = excludeKeywords
+      ? [...new Set([...(config.excludeKeywords || []), ...excludeKeywords])]
+      : config.excludeKeywords || [];
 
-    if (includeKeywords && includeKeywords.length > 0) {
-      const existingIncludes = config.includeKeywords || [];
-      const newIncludes = [...new Set([...existingIncludes, ...includeKeywords])]; // Remove duplicates
-      item.includeKeywords = newIncludes;
-    } else if (config.includeKeywords) {
-      // Preserve existing includes if no new ones provided
-      item.includeKeywords = config.includeKeywords;
-    }
+    const newIncludeKeywords = includeKeywords
+      ? [...new Set([...(config.includeKeywords || []), ...includeKeywords])]
+      : config.includeKeywords || [];
 
-    if (caseSensitive !== undefined) {
-      item.caseSensitive = caseSensitive;
-    } else if (config.caseSensitive !== undefined) {
-      // Preserve existing case sensitivity setting
-      item.caseSensitive = config.caseSensitive;
-    }
+    const newCaseSensitive = caseSensitive !== undefined ? caseSensitive : config.caseSensitive;
 
-    await ddb.send(new PutCommand({
-      TableName: configTableName,
-      Item: item
-    }));
+    await upsertConfig({
+      ...config,
+      excludeKeywords: newExcludeKeywords,
+      includeKeywords: newIncludeKeywords,
+      caseSensitive: newCaseSensitive,
+    });
 
     spinner.succeed(chalk.green(`Updated filters for search term: ${chalk.bold(searchTerm)}`));
 
     // Show all current exclusions/inclusions (both existing + new)
-    if (item.excludeKeywords && item.excludeKeywords.length > 0) {
-      console.log(chalk.red(`   🚫 Excluding: ${item.excludeKeywords.join(', ')}`));
+    if (newExcludeKeywords.length > 0) {
+      console.log(chalk.red(`   Excluding: ${newExcludeKeywords.join(', ')}`));
     }
-    if (item.includeKeywords && item.includeKeywords.length > 0) {
-      console.log(chalk.green(`   ✅ Including: ${item.includeKeywords.join(', ')}`));
+    if (newIncludeKeywords.length > 0) {
+      console.log(chalk.green(`   Including: ${newIncludeKeywords.join(', ')}`));
     }
     if (caseSensitive !== undefined) {
-      console.log(chalk.blue(`   🔤 Case sensitive: ${caseSensitive ? 'enabled' : 'disabled'}`));
+      console.log(chalk.blue(`   Case sensitive: ${caseSensitive ? 'enabled' : 'disabled'}`));
     }
   } catch (error) {
     spinner.fail(chalk.red(`Error updating filters for ${searchTerm}`));
@@ -508,7 +395,7 @@ const program = new Command();
 
 program
   .name('manage-config')
-  .description(chalk.blue('🛠️  HotUKDeals Discord Notifier - Configuration Management'))
+  .description(chalk.blue('HotUKDeals Discord Notifier - Configuration Management'))
   .version('1.0.0');
 
 // Add command
@@ -522,7 +409,7 @@ program
     await addSearchTermConfig({
       searchTerm,
       webhookUrl,
-      enabled: !options.disabled
+      enabled: !options.disabled,
     });
   });
 
@@ -588,12 +475,21 @@ program
   .option('--exclude <keywords>', 'Comma-separated list of keywords to exclude')
   .option('--include <keywords>', 'Comma-separated list of keywords to include (ALL must be present)')
   .option('--case-sensitive', 'Enable case-sensitive filtering', false)
-  .action(async (searchTerm: string, options: { exclude?: string, include?: string, caseSensitive?: boolean }) => {
-    const excludeKeywords = options.exclude ? options.exclude.split(',').map((k: string) => k.trim()) : undefined;
-    const includeKeywords = options.include ? options.include.split(',').map((k: string) => k.trim()) : undefined;
+  .action(
+    async (
+      searchTerm: string,
+      options: { exclude?: string; include?: string; caseSensitive?: boolean }
+    ) => {
+      const excludeKeywords = options.exclude
+        ? options.exclude.split(',').map((k: string) => k.trim())
+        : undefined;
+      const includeKeywords = options.include
+        ? options.include.split(',').map((k: string) => k.trim())
+        : undefined;
 
-    await addFiltersToSearchTerm(searchTerm, excludeKeywords, includeKeywords, options.caseSensitive);
-  });
+      await addFiltersToSearchTerm(searchTerm, excludeKeywords, includeKeywords, options.caseSensitive);
+    }
+  );
 
 // Remove filter command
 program
@@ -602,12 +498,16 @@ program
   .argument('<searchTerm>', 'The search term to remove filters from')
   .option('--exclude <keywords>', 'Comma-separated list of exclude keywords to remove')
   .option('--include <keywords>', 'Comma-separated list of include keywords to remove')
-  .action(async (searchTerm: string, options: { exclude?: string, include?: string }) => {
-    const removeExcludeKeywords = options.exclude ? options.exclude.split(',').map((k: string) => k.trim()) : undefined;
-    const removeIncludeKeywords = options.include ? options.include.split(',').map((k: string) => k.trim()) : undefined;
+  .action(async (searchTerm: string, options: { exclude?: string; include?: string }) => {
+    const removeExcludeKeywords = options.exclude
+      ? options.exclude.split(',').map((k: string) => k.trim())
+      : undefined;
+    const removeIncludeKeywords = options.include
+      ? options.include.split(',').map((k: string) => k.trim())
+      : undefined;
 
     if (!removeExcludeKeywords && !removeIncludeKeywords) {
-      console.log(chalk.red('❌ Please specify at least one filter to remove with --exclude or --include'));
+      console.log(chalk.red('Please specify at least one filter to remove with --exclude or --include'));
       return;
     }
 
@@ -619,11 +519,13 @@ program
   .command('examples')
   .description('Show usage examples')
   .action(() => {
-    console.log(chalk.bold.blue('\n💡 Usage Examples:\n'));
+    console.log(chalk.bold.blue('\n Usage Examples:\n'));
 
     console.log(chalk.yellow('Basic Configuration:'));
     console.log(chalk.dim('  manage-config add steam-deck https://discord.com/api/webhooks/...'));
-    console.log(chalk.dim('  manage-config add-multiple https://discord.com/api/webhooks/... steam-deck nintendo-switch xbox\n'));
+    console.log(
+      chalk.dim('  manage-config add-multiple https://discord.com/api/webhooks/... steam-deck nintendo-switch xbox\n')
+    );
 
     console.log(chalk.yellow('Filtering:'));
     console.log(chalk.dim('  manage-config add-filter steam --exclude "washing,iron,kettle"'));
