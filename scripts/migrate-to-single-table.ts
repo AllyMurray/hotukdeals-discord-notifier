@@ -60,9 +60,22 @@ interface OldConfig {
 // Map webhookUrl -> channelId for migration
 const webhookToChannelMap = new Map<string, string>();
 
+// Known webhook URL to channel name mappings
+const WEBHOOK_NAME_MAP: Record<string, string> = {
+  'https://discord.com/api/webhooks/1395011107726426183/WqZ7TgSk4ztmZQtRP45Dsnfh_l6gaVRRNVy7oKAxu4PeurJlMMwIwuIOtg8NVfNWT_gi': 'Processors',
+  'https://discord.com/api/webhooks/1421152200410923101/zAwxfglVZF_E-5NywaDMNBh4gxreLtVSapKwznn0XyzFoFn_tlWEfcRlEJ0O2AHO1y90': 'Epic Games',
+  'https://discord.com/api/webhooks/1395009941089161298/Cb3XntSFTiMnoGqcC4hlnG5GaD0FWHjXcNW-K844TwtVz5KwGFeaR4DG520duRW46QhX': 'Graphics Cards',
+  'https://discord.com/api/webhooks/1395011788201922600/kLsiHLlwGDNE8QayPYE7z14XiiainnJXMhbaOdGUg6R7WooSU1PYhDYPtTTP9ffdO633': 'Steam Games',
+};
+
 // Generate a channel name from webhook URL
 function generateChannelName(webhookUrl: string, index: number): string {
-  // Try to extract something meaningful from the webhook URL
+  // Check if we have a known name for this webhook
+  if (WEBHOOK_NAME_MAP[webhookUrl]) {
+    return WEBHOOK_NAME_MAP[webhookUrl];
+  }
+
+  // Fallback: Try to extract something meaningful from the webhook URL
   // Discord webhooks look like: https://discord.com/api/webhooks/{id}/{token}
   const match = webhookUrl.match(/webhooks\/(\d+)\//);
   if (match) {
