@@ -26,6 +26,34 @@ const hotukdealsTable = new sst.aws.Dynamo("HotUKDealsTable", {
   },
 });
 
+// =============================================================================
+// Legacy tables - kept for migration, will be removed in a future PR
+// =============================================================================
+
+const legacyDealsTable = new sst.aws.Dynamo("DealsTable", {
+  fields: {
+    id: "string",
+  },
+  primaryIndex: { hashKey: "id" },
+  transform: {
+    table(args) {
+      args.name = 'hotukdeals-processed-deals';
+    },
+  },
+});
+
+const legacyConfigTable = new sst.aws.Dynamo("ConfigTable", {
+  fields: {
+    searchTerm: "string",
+  },
+  primaryIndex: { hashKey: "searchTerm" },
+  transform: {
+    table(args) {
+      args.name = 'hotukdeals-config';
+    },
+  },
+});
+
 const notifierLambda = new sst.aws.Cron("NotifierLambda", {
   function: {
     name: "hotukdeals-discord-notifier",
@@ -53,4 +81,4 @@ const notifierLambda = new sst.aws.Cron("NotifierLambda", {
   schedule: "rate(1 minute)",
 });
 
-export { hotukdealsTable, notifierLambda };
+export { hotukdealsTable, notifierLambda, legacyDealsTable, legacyConfigTable };
