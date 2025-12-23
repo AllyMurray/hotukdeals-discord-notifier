@@ -3,10 +3,10 @@ import { Entity } from 'electrodb';
 /**
  * Deal entity tracks processed deals to prevent duplicate notifications.
  *
- * Note: No TTL is configured intentionally. If deals expire and reappear in
- * search results (common for unpopular search terms), it would cause duplicate
- * notifications. Storage cost is negligible (~$0.01/month per 100k deals).
+ * TTL is set to 12 months - long enough to prevent duplicate notifications
+ * (deals rarely stay in search results that long) while providing data hygiene.
  */
+const TWELVE_MONTHS_IN_SECONDS = 365 * 24 * 60 * 60;
 export const DealEntity = new Entity({
   model: {
     entity: 'Deal',
@@ -45,6 +45,11 @@ export const DealEntity = new Entity({
       default: () => new Date().toISOString(),
       readOnly: true,
     },
+    ttl: {
+      type: 'number',
+      default: () => Math.floor(Date.now() / 1000) + TWELVE_MONTHS_IN_SECONDS,
+      readOnly: true,
+    },
   },
   indexes: {
     // Primary access pattern: Check if deal exists by ID
@@ -72,4 +77,5 @@ export type Deal = {
   merchant?: string;
   timestamp?: number;
   createdAt?: string;
+  ttl?: number;
 };

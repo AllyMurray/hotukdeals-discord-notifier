@@ -18,6 +18,7 @@ const hotukdealsTable = new sst.aws.Dynamo("HotUKDealsTable", {
     gsi1: { hashKey: "gsi1pk", rangeKey: "gsi1sk" },
     gsi2: { hashKey: "gsi2pk", rangeKey: "gsi2sk" },
   },
+  ttl: "ttl",  // TTL attribute for Deal entity (12 month expiry)
   transform: {
     table(args) {
       args.name = 'hotukdeals';
