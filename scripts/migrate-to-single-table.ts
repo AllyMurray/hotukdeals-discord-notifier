@@ -71,8 +71,12 @@ function generateChannelName(webhookUrl: string, index: number): string {
   return `Channel ${index + 1}`;
 }
 
+// 12 months TTL in seconds (matching Deal entity)
+const TWELVE_MONTHS_IN_SECONDS = 365 * 24 * 60 * 60;
+
 // Transform old deal to new format for ElectroDB
-function transformDeal(oldDeal: OldDeal): Record<string, any> {
+function transformDeal(oldDeal: OldDeal): Record<string, unknown> {
+  const now = Date.now();
   return {
     pk: `DEAL#${oldDeal.id}`,
     sk: `DEAL#${oldDeal.id}`,
@@ -82,15 +86,16 @@ function transformDeal(oldDeal: OldDeal): Record<string, any> {
     link: oldDeal.link || '',
     price: oldDeal.price,
     merchant: oldDeal.merchant,
-    timestamp: oldDeal.timestamp || Date.now(),
+    timestamp: oldDeal.timestamp || now,
     createdAt: new Date().toISOString(),
+    ttl: Math.floor(now / 1000) + TWELVE_MONTHS_IN_SECONDS,
     __edb_e__: 'Deal',
     __edb_v__: '1',
   };
 }
 
 // Create a Channel entity from webhook URL
-function createChannel(webhookUrl: string, name: string): Record<string, any> {
+function createChannel(webhookUrl: string, name: string): Record<string, unknown> {
   const channelId = randomUUID();
   webhookToChannelMap.set(webhookUrl, channelId);
 
@@ -111,7 +116,7 @@ function createChannel(webhookUrl: string, name: string): Record<string, any> {
 }
 
 // Transform old config to new format for ElectroDB (using channelId)
-function transformConfig(oldConfig: OldConfig, channelId: string): Record<string, any> {
+function transformConfig(oldConfig: OldConfig, channelId: string): Record<string, unknown> {
   const now = new Date().toISOString();
   return {
     pk: `CHANNEL#${channelId}`,
@@ -135,7 +140,7 @@ function transformConfig(oldConfig: OldConfig, channelId: string): Record<string
 
 async function scanTable<T>(tableName: string): Promise<T[]> {
   const items: T[] = [];
-  let lastEvaluatedKey: Record<string, any> | undefined;
+  let lastEvaluatedKey: Record<string, unknown> | undefined;
 
   do {
     const result = await ddb.send(
@@ -219,7 +224,7 @@ async function migrateConfigs(): Promise<{ channels: number; configs: number }> 
     }
 
     // Step 1: Create channels for each unique webhook URL
-    const uniqueWebhooks = [...new Set(oldConfigs.map((c) => c.webhookUrl))];
+    const uniqueWebhooks = Array.from(new Set(oldConfigs.map((c) => c.webhookUrl)));
     const channelSpinner = ora(`Creating ${uniqueWebhooks.length} channels...`).start();
     let channelsCreated = 0;
 
@@ -233,7 +238,8 @@ async function migrateConfigs(): Promise<{ channels: number; configs: number }> 
         const channel = createChannel(webhookUrl, channelName);
 
         if (isDryRun) {
-          console.log(chalk.dim(`  [DRY RUN] Would create channel: ${channelName} (ID: ${channel.channelId.slice(0, 8)}...)`));
+          const channelId = channel.channelId as string;
+          console.log(chalk.dim(`  [DRY RUN] Would create channel: ${channelName} (ID: ${channelId.slice(0, 8)}...)`));
         } else {
           await ddb.send(
             new PutCommand({

@@ -1,3 +1,3 @@
-export { ChannelEntity, type Channel } from './channel';
-export { SearchTermConfigEntity, type SearchTermConfig } from './search-term-config';
-export { DealEntity, type Deal } from './deal';
+export { ChannelEntity } from './channel';
+export { SearchTermConfigEntity } from './search-term-config';
+export { DealEntity } from './deal';

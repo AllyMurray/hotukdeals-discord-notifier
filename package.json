@@ -34,7 +34,8 @@
     "electrodb": "^3.5.0",
     "ora": "^8.1.0",
     "sst": "3.17.10",
-    "undici": "^7.11.0"
+    "undici": "^7.11.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.150",

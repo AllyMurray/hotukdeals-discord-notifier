@@ -1,5 +1,6 @@
 import { Entity } from 'electrodb';
 
+// Type is defined via Zod schema in ../schemas.ts
 export const SearchTermConfigEntity = new Entity({
   model: {
     entity: 'SearchTermConfig',
@@ -92,14 +93,3 @@ export const SearchTermConfigEntity = new Entity({
     },
   },
 });
-
-export type SearchTermConfig = {
-  channelId: string;
-  searchTerm: string;
-  enabled: boolean;
-  excludeKeywords: string[];
-  includeKeywords: string[];
-  caseSensitive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-};

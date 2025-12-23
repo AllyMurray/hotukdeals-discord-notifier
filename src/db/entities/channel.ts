@@ -1,6 +1,7 @@
 import { Entity } from 'electrodb';
 import { randomUUID } from 'crypto';
 
+// Type is defined via Zod schema in ../schemas.ts
 export const ChannelEntity = new Entity({
   model: {
     entity: 'Channel',
@@ -62,11 +63,3 @@ export const ChannelEntity = new Entity({
     },
   },
 });
-
-export type Channel = {
-  channelId: string;
-  name: string;
-  webhookUrl: string;
-  createdAt?: string;
-  updatedAt?: string;
-};

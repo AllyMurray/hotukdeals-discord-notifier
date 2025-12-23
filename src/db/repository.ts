@@ -1,4 +1,14 @@
-import { HotUKDealsService, Channel, SearchTermConfig, Deal } from './service';
+import { HotUKDealsService } from './service';
+import {
+  Channel,
+  SearchTermConfig,
+  Deal,
+  parseChannel,
+  parseChannels,
+  parseSearchTermConfig,
+  parseSearchTermConfigs,
+  parseDeal,
+} from './schemas';
 
 // ============================================================================
 // Channel Repository
@@ -11,7 +21,7 @@ export async function getAllChannels(): Promise<Channel[]> {
   const result = await HotUKDealsService.entities.channel.query
     .allChannels({})
     .go();
-  return result.data;
+  return parseChannels(result.data);
 }
 
 /**
@@ -21,7 +31,8 @@ export async function getChannel(channelId: string): Promise<Channel | null> {
   const result = await HotUKDealsService.entities.channel.query
     .byChannelId({ channelId })
     .go();
-  return result.data[0] ?? null;
+  const data = result.data[0];
+  return data ? parseChannel(data) : null;
 }
 
 /**
@@ -37,7 +48,7 @@ export async function createChannel(channel: {
       webhookUrl: channel.webhookUrl,
     })
     .go();
-  return result.data;
+  return parseChannel(result.data);
 }
 
 /**
@@ -54,7 +65,7 @@ export async function updateChannel(
     .patch({ channelId })
     .set(updates)
     .go();
-  return result.data;
+  return parseChannel(result.data);
 }
 
 /**
@@ -81,7 +92,7 @@ export async function getAllConfigs(): Promise<SearchTermConfig[]> {
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .allConfigs({})
     .go();
-  return result.data;
+  return parseSearchTermConfigs(result.data);
 }
 
 /**
@@ -99,7 +110,7 @@ export async function getConfigsByChannel(channelId: string): Promise<SearchTerm
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .byChannel({ channelId })
     .go();
-  return result.data;
+  return parseSearchTermConfigs(result.data);
 }
 
 /**
@@ -109,7 +120,8 @@ export async function getConfig(channelId: string, searchTerm: string): Promise<
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .byChannel({ channelId, searchTerm })
     .go();
-  return result.data[0] ?? null;
+  const data = result.data[0];
+  return data ? parseSearchTermConfig(data) : null;
 }
 
 /**
@@ -119,7 +131,8 @@ export async function getConfigBySearchTerm(searchTerm: string): Promise<SearchT
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .bySearchTerm({ searchTerm })
     .go();
-  return result.data[0] ?? null;
+  const data = result.data[0];
+  return data ? parseSearchTermConfig(data) : null;
 }
 
 /**
@@ -129,7 +142,7 @@ export async function getAllConfigsForSearchTerm(searchTerm: string): Promise<Se
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .bySearchTerm({ searchTerm })
     .go();
-  return result.data;
+  return parseSearchTermConfigs(result.data);
 }
 
 /**
@@ -153,7 +166,7 @@ export async function upsertConfig(config: {
       caseSensitive: config.caseSensitive ?? false,
     })
     .go();
-  return result.data;
+  return parseSearchTermConfig(result.data);
 }
 
 /**
@@ -204,7 +217,8 @@ export async function getDeal(dealId: string): Promise<Deal | null> {
   const result = await HotUKDealsService.entities.deal.query
     .byDealId({ dealId })
     .go();
-  return result.data[0] ?? null;
+  const data = result.data[0];
+  return data ? parseDeal(data) : null;
 }
 
 /**
@@ -229,7 +243,7 @@ export async function createDeal(deal: {
       timestamp: Date.now(),
     })
     .go();
-  return result.data;
+  return parseDeal(result.data);
 }
 
 // ============================================================================

@@ -27,7 +27,5 @@ export const HotUKDealsService = new Service(
 // Re-export entities for direct access if needed
 export { ChannelEntity, SearchTermConfigEntity, DealEntity };
 
-// Type exports
-export type { Channel } from './entities/channel';
-export type { SearchTermConfig } from './entities/search-term-config';
-export type { Deal } from './entities/deal';
+// Type exports from Zod schemas
+export type { Channel, SearchTermConfig, Deal } from './schemas';

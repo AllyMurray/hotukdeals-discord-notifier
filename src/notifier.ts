@@ -11,6 +11,7 @@ import {
   ChannelWithConfigs,
   SearchTermConfig,
 } from './db';
+import { DiscordEmbed, DiscordWebhookPayload } from './discord-types';
 
 const logger = new Logger({ serviceName: 'HotUKDealsNotifier' });
 
@@ -120,61 +121,87 @@ const processChannelFeeds = async (channelWithConfigs: ChannelWithConfigs): Prom
   });
 
   try {
-    const allNewDeals: DealWithSearchTerm[] = [];
+    // Collect all deals from all search terms first
+    const allDealsWithConfig: Array<{ deal: Deal; searchConfig: SearchTermConfig }> = [];
 
-    // Process each search term and collect new deals
     for (const searchConfig of configs) {
       const { searchTerm } = searchConfig;
       logger.info('Fetching deals for search term', { searchTerm });
 
       const deals = await fetchDeals(searchTerm);
-
       for (const deal of deals) {
-        const dealId = deal.id;
-
-        const exists = await dealExists(dealId);
-
-        if (!exists) {
-          // Apply filtering logic
-          if (!filterDeal(deal, searchConfig)) {
-            logger.debug('Deal filtered out', {
-              dealId,
-              title: deal.title,
-              searchTerm,
-            });
-            continue;
-          }
-
-          logger.info('New deal found', {
-            title: deal.title,
-            link: deal.link,
-            price: deal.price,
-            merchant: deal.merchant,
-            searchTerm,
-          });
-
-          allNewDeals.push({
-            ...deal,
-            searchTerm,
-          });
-
-          // Store the deal in the processed deals table
-          await createDeal({
-            dealId,
-            searchTerm,
-            title: deal.title,
-            link: deal.link,
-            price: deal.price,
-            merchant: deal.merchant,
-          });
-        } else {
-          logger.debug('Deal already exists, skipping', { dealId, searchTerm });
-        }
+        allDealsWithConfig.push({ deal, searchConfig });
       }
     }
 
-    // Send combined message if we have new deals
+    if (allDealsWithConfig.length === 0) {
+      logger.info('No deals found for channel', {
+        channelName: channel.name,
+        searchTerms,
+      });
+      return;
+    }
+
+    // Batch check existence for all deals
+    const existenceChecks = await Promise.all(
+      allDealsWithConfig.map(async ({ deal }) => ({
+        dealId: deal.id,
+        exists: await dealExists(deal.id),
+      }))
+    );
+
+    const existsMap = new Map(existenceChecks.map((check) => [check.dealId, check.exists]));
+
+    // Process deals that don't exist
+    const allNewDeals: DealWithSearchTerm[] = [];
+
+    for (const { deal, searchConfig } of allDealsWithConfig) {
+      const dealId = deal.id;
+
+      if (existsMap.get(dealId)) {
+        logger.debug('Deal already exists, skipping', { dealId, searchTerm: searchConfig.searchTerm });
+        continue;
+      }
+
+      // Apply filtering logic
+      if (!filterDeal(deal, searchConfig)) {
+        logger.debug('Deal filtered out', {
+          dealId,
+          title: deal.title,
+          searchTerm: searchConfig.searchTerm,
+        });
+        continue;
+      }
+
+      logger.info('New deal found', {
+        title: deal.title,
+        link: deal.link,
+        price: deal.price,
+        merchant: deal.merchant,
+        searchTerm: searchConfig.searchTerm,
+      });
+
+      allNewDeals.push({
+        ...deal,
+        searchTerm: searchConfig.searchTerm,
+      });
+    }
+
+    // Batch create all new deals
     if (allNewDeals.length > 0) {
+      await Promise.all(
+        allNewDeals.map((deal) =>
+          createDeal({
+            dealId: deal.id,
+            searchTerm: deal.searchTerm,
+            title: deal.title,
+            link: deal.link,
+            price: deal.price,
+            merchant: deal.merchant,
+          })
+        )
+      );
+
       await sendCombinedDiscordMessage(channel.webhookUrl, allNewDeals);
     } else {
       logger.info('No new deals found for channel', {
@@ -231,22 +258,13 @@ const formatPrice = (deal: DealWithSearchTerm): string => {
 };
 
 // Create Discord embed for a single deal
-const createDealEmbed = (deal: DealWithSearchTerm): any => {
-  const embed: any = {
-    title: deal.title,
-    url: deal.link,
-    color: getDealColor(),
-    fields: [],
-    footer: {
-      text: `Search Term: ${deal.searchTerm}`,
-    },
-    timestamp: new Date().toISOString(),
-  };
+const createDealEmbed = (deal: DealWithSearchTerm): DiscordEmbed => {
+  const fields: DiscordEmbed['fields'] = [];
 
   // Add price information
   const priceInfo = formatPrice(deal);
   if (priceInfo) {
-    embed.fields.push({
+    fields.push({
       name: 'Price',
       value: priceInfo,
       inline: true,
@@ -259,14 +277,23 @@ const createDealEmbed = (deal: DealWithSearchTerm): any => {
     if (deal.merchantUrl) {
       merchantText = `🏪 [${deal.merchant}](${deal.merchantUrl})`;
     }
-    embed.fields.push({
+    fields.push({
       name: 'Merchant',
       value: merchantText,
       inline: true,
     });
   }
 
-  return embed;
+  return {
+    title: deal.title,
+    url: deal.link,
+    color: getDealColor(),
+    fields,
+    footer: {
+      text: `Search Term: ${deal.searchTerm}`,
+    },
+    timestamp: new Date().toISOString(),
+  };
 };
 
 // Send combined Discord message for all new deals using rich embeds
@@ -322,7 +349,7 @@ const sendCombinedDiscordMessage = async (
         }
       }
 
-      const payload: any = { embeds };
+      const payload: DiscordWebhookPayload = { embeds };
       if (content) payload.content = content;
 
       await request(webhookUrl, {

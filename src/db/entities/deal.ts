@@ -5,6 +5,8 @@ import { Entity } from 'electrodb';
  *
  * TTL is set to 12 months - long enough to prevent duplicate notifications
  * (deals rarely stay in search results that long) while providing data hygiene.
+ *
+ * Type is defined via Zod schema in ../schemas.ts
  */
 const TWELVE_MONTHS_IN_SECONDS = 365 * 24 * 60 * 60;
 export const DealEntity = new Entity({
@@ -67,15 +69,3 @@ export const DealEntity = new Entity({
     },
   },
 });
-
-export type Deal = {
-  dealId: string;
-  searchTerm: string;
-  title: string;
-  link: string;
-  price?: string;
-  merchant?: string;
-  timestamp?: number;
-  createdAt?: string;
-  ttl?: number;
-};

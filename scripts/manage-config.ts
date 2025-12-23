@@ -145,6 +145,15 @@ async function updateChannelCommand(
       return;
     }
 
+    // Check if new name conflicts with existing channel
+    if (options.name && options.name.toLowerCase() !== channelName.toLowerCase()) {
+      const existingWithName = await findChannelByName(options.name);
+      if (existingWithName) {
+        spinner.fail(chalk.red(`Channel '${options.name}' already exists`));
+        return;
+      }
+    }
+
     spinner.text = 'Updating channel...';
     await updateChannel(channel.channelId, updates);
 
@@ -386,11 +395,11 @@ async function addFiltersToSearchTerm(
 
     // Merge with existing
     const newExcludeKeywords = excludeKeywords
-      ? [...new Set([...(config.excludeKeywords || []), ...excludeKeywords])]
+      ? Array.from(new Set([...(config.excludeKeywords || []), ...excludeKeywords]))
       : config.excludeKeywords || [];
 
     const newIncludeKeywords = includeKeywords
-      ? [...new Set([...(config.includeKeywords || []), ...includeKeywords])]
+      ? Array.from(new Set([...(config.includeKeywords || []), ...includeKeywords]))
       : config.includeKeywords || [];
 
     const newCaseSensitive =
