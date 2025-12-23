@@ -1,6 +1,7 @@
 // Single table design for HotUKDeals notifier
 // Uses ElectroDB with the following access patterns:
-// - SearchTermConfig: Query by webhookUrl (PK), get all configs via GSI1, lookup by searchTerm via GSI2
+// - Channel: Query by channelId (PK), list all via GSI1
+// - SearchTermConfig: Query by channelId (PK), list all via GSI1, lookup by searchTerm via GSI2
 // - Deal: Query by dealId (PK)
 
 const hotukdealsTable = new sst.aws.Dynamo("HotUKDealsTable", {

@@ -10,17 +10,14 @@ process.env.TABLE_NAME = process.env.TABLE_NAME || 'hotukdeals';
 import {
   // Channel operations
   getAllChannels,
-  getChannel,
   createChannel,
   updateChannel,
   deleteChannel,
   // Config operations
   getAllConfigs,
-  getConfigsByChannel,
   getConfigBySearchTerm,
   upsertConfig,
   deleteConfig,
-  deleteConfigsByChannel,
   // Types
   Channel,
   SearchTermConfig,
@@ -45,6 +42,14 @@ async function createChannelCommand(name: string, webhookUrl: string): Promise<v
   const spinner = ora('Creating channel...').start();
 
   try {
+    // Check if channel with same name already exists
+    const existing = await findChannelByName(name);
+    if (existing) {
+      spinner.fail(chalk.red(`Channel '${name}' already exists`));
+      console.log(chalk.dim(`   ID: ${existing.channelId}`));
+      return;
+    }
+
     const channel = await createChannel({ name, webhookUrl });
     spinner.succeed(chalk.green(`Created channel: ${chalk.bold(name)}`));
     console.log(chalk.dim(`   ID: ${channel.channelId}`));
