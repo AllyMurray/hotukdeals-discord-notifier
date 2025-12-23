@@ -1,5 +1,12 @@
 import { Entity } from 'electrodb';
 
+/**
+ * Deal entity tracks processed deals to prevent duplicate notifications.
+ *
+ * Note: No TTL is configured intentionally. If deals expire and reappear in
+ * search results (common for unpopular search terms), it would cause duplicate
+ * notifications. Storage cost is negligible (~$0.01/month per 100k deals).
+ */
 export const DealEntity = new Entity({
   model: {
     entity: 'Deal',

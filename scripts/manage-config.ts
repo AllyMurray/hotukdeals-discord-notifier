@@ -34,11 +34,25 @@ const formatWebhookUrl = (url: string): string => {
   return url.length > 50 ? url.substring(0, 50) + '...' : url;
 };
 
+// Validate Discord webhook URL format
+const DISCORD_WEBHOOK_REGEX = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+
+function isValidDiscordWebhook(url: string): boolean {
+  return DISCORD_WEBHOOK_REGEX.test(url);
+}
+
 // ============================================================================
 // Channel Commands
 // ============================================================================
 
 async function createChannelCommand(name: string, webhookUrl: string): Promise<void> {
+  // Validate webhook URL format
+  if (!isValidDiscordWebhook(webhookUrl)) {
+    console.log(chalk.red('Invalid Discord webhook URL format'));
+    console.log(chalk.dim('Expected: https://discord.com/api/webhooks/{id}/{token}'));
+    return;
+  }
+
   const spinner = ora('Creating channel...').start();
 
   try {
@@ -105,6 +119,13 @@ async function updateChannelCommand(
   channelName: string,
   options: { name?: string; webhook?: string }
 ): Promise<void> {
+  // Validate webhook URL format if provided
+  if (options.webhook && !isValidDiscordWebhook(options.webhook)) {
+    console.log(chalk.red('Invalid Discord webhook URL format'));
+    console.log(chalk.dim('Expected: https://discord.com/api/webhooks/{id}/{token}'));
+    return;
+  }
+
   const spinner = ora(`Finding channel: ${channelName}...`).start();
 
   try {

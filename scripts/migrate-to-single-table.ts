@@ -228,12 +228,12 @@ async function migrateConfigs(): Promise<{ channels: number; configs: number }> 
       const channelName = generateChannelName(webhookUrl, i);
 
       try {
+        // createChannel generates a UUID and adds it to webhookToChannelMap
+        // This happens for both dry-run and real runs so config migration works
         const channel = createChannel(webhookUrl, channelName);
 
         if (isDryRun) {
-          console.log(chalk.dim(`  [DRY RUN] Would create channel: ${channelName}`));
-          // Still add to map for config migration
-          webhookToChannelMap.set(webhookUrl, channel.channelId);
+          console.log(chalk.dim(`  [DRY RUN] Would create channel: ${channelName} (ID: ${channel.channelId.slice(0, 8)}...)`));
         } else {
           await ddb.send(
             new PutCommand({
