@@ -75,6 +75,11 @@ function generateChannelName(webhookUrl: string, index: number): string {
     return WEBHOOK_NAME_MAP[webhookUrl];
   }
 
+  // Warn about unknown webhook URL
+  console.log(chalk.yellow(`\n⚠️  Unknown webhook URL found - using auto-generated name`));
+  console.log(chalk.yellow(`   Add this to WEBHOOK_NAME_MAP in the migration script:`));
+  console.log(chalk.dim(`   '${webhookUrl}': 'Your Channel Name',\n`));
+
   // Fallback: Try to extract something meaningful from the webhook URL
   // Discord webhooks look like: https://discord.com/api/webhooks/{id}/{token}
   const match = webhookUrl.match(/webhooks\/(\d+)\//);
