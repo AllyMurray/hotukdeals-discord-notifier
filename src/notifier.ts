@@ -302,20 +302,8 @@ const sendCombinedDiscordMessage = async (
   deals: DealWithSearchTerm[]
 ): Promise<void> => {
   try {
-    // Group deals by search term for better organization
-    const dealsBySearchTerm = deals.reduce(
-      (acc, deal) => {
-        if (!acc[deal.searchTerm]) {
-          acc[deal.searchTerm] = [];
-        }
-        acc[deal.searchTerm].push(deal);
-        return acc;
-      },
-      {} as Record<string, DealWithSearchTerm[]>
-    );
-
     const totalDeals = deals.length;
-    const searchTerms = Object.keys(dealsBySearchTerm);
+    const searchTerms = Array.from(new Set(deals.map((d) => d.searchTerm)));
 
     // Discord allows up to 10 embeds per message, so we need to batch them
     const maxEmbedsPerMessage = 10;
