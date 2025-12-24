@@ -3,3 +3,6 @@
 .sst
 
 node_modules
+
+# Migration state file
+.migration-state.json
