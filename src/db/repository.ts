@@ -11,6 +11,40 @@ import {
 } from './schemas';
 
 // ============================================================================
+// Parameter Types
+// ============================================================================
+
+export type GetChannelParams = { id: string };
+export type UpdateChannelParams = { id: string; name?: string; webhookUrl?: string };
+export type DeleteChannelParams = { id: string };
+export type CreateChannelParams = { name: string; webhookUrl: string };
+
+export type GetConfigsByChannelParams = { channelId: string };
+export type GetConfigParams = { channelId: string; searchTerm: string };
+export type GetConfigBySearchTermParams = { term: string };
+export type UpsertConfigParams = {
+  channelId: string;
+  searchTerm: string;
+  enabled?: boolean;
+  excludeKeywords?: string[];
+  includeKeywords?: string[];
+  caseSensitive?: boolean;
+};
+export type DeleteConfigParams = { channelId: string; searchTerm: string };
+export type DeleteConfigsByChannelParams = { channelId: string };
+
+export type DealExistsParams = { id: string };
+export type GetDealParams = { id: string };
+export type CreateDealParams = {
+  id: string;
+  searchTerm: string;
+  title: string;
+  link: string;
+  price?: string;
+  merchant?: string;
+};
+
+// ============================================================================
 // Channel Repository
 // ============================================================================
 
@@ -27,9 +61,9 @@ export async function getAllChannels(): Promise<Channel[]> {
 /**
  * Get a channel by ID
  */
-export async function getChannel({ channelId }: { channelId: string }): Promise<Channel | null> {
+export async function getChannel({ id }: GetChannelParams): Promise<Channel | null> {
   const result = await HotUKDealsService.entities.channel.query
-    .byChannelId({ channelId })
+    .byChannelId({ channelId: id })
     .go();
   const data = result.data[0];
   return data ? parseChannel(data) : null;
@@ -38,15 +72,9 @@ export async function getChannel({ channelId }: { channelId: string }): Promise<
 /**
  * Create a new channel
  */
-export async function createChannel(channel: {
-  name: string;
-  webhookUrl: string;
-}): Promise<Channel> {
+export async function createChannel({ name, webhookUrl }: CreateChannelParams): Promise<Channel> {
   const result = await HotUKDealsService.entities.channel
-    .put({
-      name: channel.name,
-      webhookUrl: channel.webhookUrl,
-    })
+    .put({ name, webhookUrl })
     .go();
   return parseChannel(result.data);
 }
@@ -54,21 +82,13 @@ export async function createChannel(channel: {
 /**
  * Update a channel
  */
-export async function updateChannel({
-  channelId,
-  name,
-  webhookUrl,
-}: {
-  channelId: string;
-  name?: string;
-  webhookUrl?: string;
-}): Promise<Channel> {
+export async function updateChannel({ id, name, webhookUrl }: UpdateChannelParams): Promise<Channel> {
   const updates: { name?: string; webhookUrl?: string } = {};
   if (name !== undefined) updates.name = name;
   if (webhookUrl !== undefined) updates.webhookUrl = webhookUrl;
 
   const result = await HotUKDealsService.entities.channel
-    .patch({ channelId })
+    .patch({ channelId: id })
     .set(updates)
     .go();
   return parseChannel(result.data);
@@ -77,13 +97,13 @@ export async function updateChannel({
 /**
  * Delete a channel and all its configs
  */
-export async function deleteChannel({ channelId }: { channelId: string }): Promise<void> {
+export async function deleteChannel({ id }: DeleteChannelParams): Promise<void> {
   // First delete all configs for this channel
-  await deleteConfigsByChannel({ channelId });
+  await deleteConfigsByChannel({ channelId: id });
 
   // Then delete the channel
   await HotUKDealsService.entities.channel
-    .delete({ channelId })
+    .delete({ channelId: id })
     .go();
 }
 
@@ -112,7 +132,7 @@ export async function getEnabledConfigs(): Promise<SearchTermConfig[]> {
 /**
  * Get all configs for a specific channel (no scan - uses primary key)
  */
-export async function getConfigsByChannel({ channelId }: { channelId: string }): Promise<SearchTermConfig[]> {
+export async function getConfigsByChannel({ channelId }: GetConfigsByChannelParams): Promise<SearchTermConfig[]> {
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .byChannel({ channelId })
     .go();
@@ -122,13 +142,7 @@ export async function getConfigsByChannel({ channelId }: { channelId: string }):
 /**
  * Get a specific config by channel ID and search term
  */
-export async function getConfig({
-  channelId,
-  searchTerm,
-}: {
-  channelId: string;
-  searchTerm: string;
-}): Promise<SearchTermConfig | null> {
+export async function getConfig({ channelId, searchTerm }: GetConfigParams): Promise<SearchTermConfig | null> {
   const result = await HotUKDealsService.entities.searchTermConfig.query
     .byChannel({ channelId, searchTerm })
     .go();
@@ -139,9 +153,9 @@ export async function getConfig({
 /**
  * Get a config by search term (uses GSI)
  */
-export async function getConfigBySearchTerm({ searchTerm }: { searchTerm: string }): Promise<SearchTermConfig | null> {
+export async function getConfigBySearchTerm({ term }: GetConfigBySearchTermParams): Promise<SearchTermConfig | null> {
   const result = await HotUKDealsService.entities.searchTermConfig.query
-    .bySearchTerm({ searchTerm })
+    .bySearchTerm({ searchTerm: term })
     .go();
   const data = result.data[0];
   return data ? parseSearchTermConfig(data) : null;
@@ -150,9 +164,9 @@ export async function getConfigBySearchTerm({ searchTerm }: { searchTerm: string
 /**
  * Get all configs for a search term (multiple channels could use same term)
  */
-export async function getAllConfigsForSearchTerm({ searchTerm }: { searchTerm: string }): Promise<SearchTermConfig[]> {
+export async function getAllConfigsForSearchTerm({ term }: GetConfigBySearchTermParams): Promise<SearchTermConfig[]> {
   const result = await HotUKDealsService.entities.searchTermConfig.query
-    .bySearchTerm({ searchTerm })
+    .bySearchTerm({ searchTerm: term })
     .go();
   return parseSearchTermConfigs(result.data);
 }
@@ -160,14 +174,7 @@ export async function getAllConfigsForSearchTerm({ searchTerm }: { searchTerm: s
 /**
  * Create or update a search term config
  */
-export async function upsertConfig(config: {
-  channelId: string;
-  searchTerm: string;
-  enabled?: boolean;
-  excludeKeywords?: string[];
-  includeKeywords?: string[];
-  caseSensitive?: boolean;
-}): Promise<SearchTermConfig> {
+export async function upsertConfig(config: UpsertConfigParams): Promise<SearchTermConfig> {
   const result = await HotUKDealsService.entities.searchTermConfig
     .upsert({
       channelId: config.channelId,
@@ -184,13 +191,7 @@ export async function upsertConfig(config: {
 /**
  * Delete a config by channel ID and search term
  */
-export async function deleteConfig({
-  channelId,
-  searchTerm,
-}: {
-  channelId: string;
-  searchTerm: string;
-}): Promise<void> {
+export async function deleteConfig({ channelId, searchTerm }: DeleteConfigParams): Promise<void> {
   await HotUKDealsService.entities.searchTermConfig
     .delete({ channelId, searchTerm })
     .go();
@@ -199,7 +200,7 @@ export async function deleteConfig({
 /**
  * Delete all configs for a channel
  */
-export async function deleteConfigsByChannel({ channelId }: { channelId: string }): Promise<string[]> {
+export async function deleteConfigsByChannel({ channelId }: DeleteConfigsByChannelParams): Promise<string[]> {
   const configs = await getConfigsByChannel({ channelId });
   const searchTerms = configs.map((c) => c.searchTerm);
 
@@ -221,9 +222,9 @@ export async function deleteConfigsByChannel({ channelId }: { channelId: string 
 /**
  * Check if a deal exists by ID
  */
-export async function dealExists({ dealId }: { dealId: string }): Promise<boolean> {
+export async function dealExists({ id }: DealExistsParams): Promise<boolean> {
   const result = await HotUKDealsService.entities.deal.query
-    .byDealId({ dealId })
+    .byDealId({ dealId: id })
     .go();
   return result.data.length > 0;
 }
@@ -231,9 +232,9 @@ export async function dealExists({ dealId }: { dealId: string }): Promise<boolea
 /**
  * Get a deal by ID
  */
-export async function getDeal({ dealId }: { dealId: string }): Promise<Deal | null> {
+export async function getDeal({ id }: GetDealParams): Promise<Deal | null> {
   const result = await HotUKDealsService.entities.deal.query
-    .byDealId({ dealId })
+    .byDealId({ dealId: id })
     .go();
   const data = result.data[0];
   return data ? parseDeal(data) : null;
@@ -242,17 +243,10 @@ export async function getDeal({ dealId }: { dealId: string }): Promise<Deal | nu
 /**
  * Create a new deal record
  */
-export async function createDeal(deal: {
-  dealId: string;
-  searchTerm: string;
-  title: string;
-  link: string;
-  price?: string;
-  merchant?: string;
-}): Promise<Deal> {
+export async function createDeal(deal: CreateDealParams): Promise<Deal> {
   const result = await HotUKDealsService.entities.deal
     .put({
-      dealId: deal.dealId,
+      dealId: deal.id,
       searchTerm: deal.searchTerm,
       title: deal.title,
       link: deal.link,

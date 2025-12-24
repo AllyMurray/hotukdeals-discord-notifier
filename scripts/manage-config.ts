@@ -155,7 +155,7 @@ async function updateChannelCommand(
     }
 
     spinner.text = 'Updating channel...';
-    await updateChannel({ channelId: channel.channelId, ...updates });
+    await updateChannel({ id: channel.channelId, ...updates });
 
     spinner.succeed(chalk.green(`Updated channel: ${chalk.bold(channelName)}`));
     if (options.name) console.log(chalk.dim(`   New name: ${options.name}`));
@@ -178,7 +178,7 @@ async function deleteChannelCommand(channelName: string): Promise<void> {
     }
 
     spinner.text = 'Deleting channel and all its configs...';
-    await deleteChannel({ channelId: channel.channelId });
+    await deleteChannel({ id: channel.channelId });
 
     spinner.succeed(chalk.green(`Deleted channel: ${chalk.bold(channelName)}`));
   } catch (error) {
@@ -328,7 +328,7 @@ async function removeSearchTermConfig(searchTerm: string): Promise<void> {
   const spinner = ora(`Finding search term: ${searchTerm}...`).start();
 
   try {
-    const config = await getConfigBySearchTerm({ searchTerm });
+    const config = await getConfigBySearchTerm({ term: searchTerm });
 
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
@@ -349,7 +349,7 @@ async function toggleSearchTermConfig(searchTerm: string): Promise<void> {
   const spinner = ora(`Finding search term: ${searchTerm}...`).start();
 
   try {
-    const config = await getConfigBySearchTerm({ searchTerm });
+    const config = await getConfigBySearchTerm({ term: searchTerm });
 
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
@@ -379,7 +379,7 @@ async function addFiltersToSearchTerm(
   const spinner = ora(`Finding search term: ${searchTerm}...`).start();
 
   try {
-    const config = await getConfigBySearchTerm({ searchTerm });
+    const config = await getConfigBySearchTerm({ term: searchTerm });
 
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));
@@ -437,7 +437,7 @@ async function removeFiltersFromSearchTerm(
   const spinner = ora(`Finding search term: ${searchTerm}...`).start();
 
   try {
-    const config = await getConfigBySearchTerm({ searchTerm });
+    const config = await getConfigBySearchTerm({ term: searchTerm });
 
     if (!config) {
       spinner.fail(chalk.red(`Search term '${searchTerm}' not found`));

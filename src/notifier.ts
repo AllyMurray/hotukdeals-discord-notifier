@@ -146,7 +146,7 @@ const processChannelFeeds = async (channelWithConfigs: ChannelWithConfigs): Prom
     const existenceChecks = await Promise.all(
       allDealsWithConfig.map(async ({ deal }) => ({
         dealId: deal.id,
-        exists: await dealExists({ dealId: deal.id }),
+        exists: await dealExists({ id: deal.id }),
       }))
     );
 
@@ -192,7 +192,7 @@ const processChannelFeeds = async (channelWithConfigs: ChannelWithConfigs): Prom
       await Promise.all(
         allNewDeals.map((deal) =>
           createDeal({
-            dealId: deal.id,
+            id: deal.id,
             searchTerm: deal.searchTerm,
             title: deal.title,
             link: deal.link,
