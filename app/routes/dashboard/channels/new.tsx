@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { notifications } from "@mantine/notifications";
 import type { Route } from "./+types/new";
 import { ChannelNewPage } from "~/pages/dashboard";
 import { type ChannelFormValues } from "~/components/channels";
@@ -36,8 +37,18 @@ export default function NewChannel() {
     const result = await response.json();
 
     if (result.success) {
+      notifications.show({
+        title: "Channel created",
+        message: "Your new channel has been created successfully.",
+        color: "green",
+      });
       navigate(`/dashboard/channels/${result.channelId}`);
     } else {
+      notifications.show({
+        title: "Error",
+        message: result.error || "Failed to create channel. Please try again.",
+        color: "red",
+      });
       setIsSubmitting(false);
     }
   };
