@@ -1,4 +1,6 @@
-import { redirect, useNavigate } from "react-router";
+import { redirect, useNavigate, useActionData } from "react-router";
+import { useEffect } from "react";
+import { notifications } from "@mantine/notifications";
 import type { Route } from "./+types/$id.edit";
 import { ChannelEditPage } from "~/pages/dashboard";
 import { requireUser } from "~/lib/auth";
@@ -33,17 +35,31 @@ export async function action({ request, params }: Route.ActionArgs) {
     throw new Response("Channel not found", { status: 404 });
   }
 
-  await updateChannel({
-    id: params.id!,
-    name,
-    webhookUrl,
-  });
-
-  return redirect(`/dashboard/channels/${params.id}`);
+  try {
+    await updateChannel({
+      id: params.id!,
+      name,
+      webhookUrl,
+    });
+    return redirect(`/dashboard/channels/${params.id}`);
+  } catch {
+    return { error: "Failed to update channel. Please try again." };
+  }
 }
 
 export default function EditChannel({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
+  const actionData = useActionData<typeof action>();
+
+  useEffect(() => {
+    if (actionData && "error" in actionData) {
+      notifications.show({
+        title: "Error",
+        message: actionData.error,
+        color: "red",
+      });
+    }
+  }, [actionData]);
 
   return (
     <ChannelEditPage

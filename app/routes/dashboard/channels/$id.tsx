@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useFetcher } from "react-router";
 import type { Route } from "./+types/$id";
 import { ChannelDetailPage } from "~/pages/dashboard";
@@ -148,18 +148,26 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
     searchTerm: string | null;
   }>({ open: false, searchTerm: null });
 
-  // Track which operation is in progress based on the submitted intent
-  const pendingIntent = useRef<string | null>(null);
-  const isSubmitting = fetcher.state !== "idle" && pendingIntent.current === "upsertConfig";
-  const isDeleting = fetcher.state !== "idle" && pendingIntent.current === "deleteConfig";
-  const isTesting = fetcher.state !== "idle" && pendingIntent.current === "testNotification";
+  // Track which operation is in progress using fetcher.formData
+  const pendingIntent = fetcher.formData?.get("intent");
+  const isSubmitting = fetcher.state !== "idle" && pendingIntent === "upsertConfig";
+  const isDeleting = fetcher.state !== "idle" && pendingIntent === "deleteConfig";
+  const isTesting = fetcher.state !== "idle" && pendingIntent === "testNotification";
+
+  // Track the last intent for showing notifications after completion
+  const [lastIntent, setLastIntent] = useState<string | null>(null);
+
+  // Update lastIntent when a new submission starts
+  useEffect(() => {
+    if (fetcher.state === "submitting" && pendingIntent) {
+      setLastIntent(pendingIntent as string);
+    }
+  }, [fetcher.state, pendingIntent]);
 
   // Handle fetcher completion
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data) {
-      const intent = pendingIntent.current;
-
-      if (intent === "testNotification") {
+    if (fetcher.state === "idle" && fetcher.data && lastIntent) {
+      if (lastIntent === "testNotification") {
         if (fetcher.data.success) {
           notifications.show({
             title: "Success",
@@ -175,17 +183,17 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
         }
       }
 
-      if (intent === "upsertConfig" && fetcher.data.success) {
+      if (lastIntent === "upsertConfig" && fetcher.data.success) {
         setConfigModal({ open: false, config: null, isEditing: false });
       }
 
-      if (intent === "deleteConfig" && fetcher.data.success) {
+      if (lastIntent === "deleteConfig" && fetcher.data.success) {
         setDeleteModal({ open: false, searchTerm: null });
       }
 
-      pendingIntent.current = null;
+      setLastIntent(null);
     }
-  }, [fetcher.state, fetcher.data]);
+  }, [fetcher.state, fetcher.data, lastIntent]);
 
   const handleAddConfig = () => {
     setConfigModal({ open: true, config: null, isEditing: false });
@@ -207,7 +215,6 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
   };
 
   const handleToggleConfig = (searchTerm: string, enabled: boolean) => {
-    pendingIntent.current = "toggleConfig";
     fetcher.submit(
       {
         intent: "toggleConfig",
@@ -219,7 +226,6 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
   };
 
   const handleSubmitConfig = (values: ConfigFormValues) => {
-    pendingIntent.current = "upsertConfig";
     fetcher.submit(
       {
         intent: "upsertConfig",
@@ -236,7 +242,6 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
   const handleConfirmDelete = () => {
     if (!deleteModal.searchTerm) return;
 
-    pendingIntent.current = "deleteConfig";
     fetcher.submit(
       {
         intent: "deleteConfig",
@@ -247,7 +252,6 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
   };
 
   const handleTestNotification = () => {
-    pendingIntent.current = "testNotification";
     fetcher.submit(
       { intent: "testNotification" },
       { method: "POST" }
