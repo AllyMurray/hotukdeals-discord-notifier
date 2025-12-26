@@ -1,5 +1,6 @@
 import { TextInput, Button, Stack, Group } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { Form, useNavigation } from "react-router";
 
 export interface ChannelFormValues {
   name: string;
@@ -8,19 +9,18 @@ export interface ChannelFormValues {
 
 export interface ChannelFormProps {
   initialValues?: ChannelFormValues;
-  onSubmit: (values: ChannelFormValues) => void;
   onCancel: () => void;
-  isSubmitting?: boolean;
   submitLabel?: string;
 }
 
 export function ChannelForm({
   initialValues,
-  onSubmit,
   onCancel,
-  isSubmitting = false,
   submitLabel = "Save",
 }: ChannelFormProps) {
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+
   const form = useForm<ChannelFormValues>({
     initialValues: initialValues || {
       name: "",
@@ -40,9 +40,15 @@ export function ChannelForm({
   });
 
   return (
-    <form onSubmit={form.onSubmit(onSubmit)} data-testid="channel-form">
+    <Form method="post" onSubmit={(e) => {
+      const result = form.validate();
+      if (result.hasErrors) {
+        e.preventDefault();
+      }
+    }} data-testid="channel-form">
       <Stack gap="md">
         <TextInput
+          name="name"
           label="Channel Name"
           placeholder="e.g., Gaming Deals"
           required
@@ -50,6 +56,7 @@ export function ChannelForm({
           {...form.getInputProps("name")}
         />
         <TextInput
+          name="webhookUrl"
           label="Discord Webhook URL"
           placeholder="https://discord.com/api/webhooks/..."
           required
@@ -74,6 +81,6 @@ export function ChannelForm({
           </Button>
         </Group>
       </Stack>
-    </form>
+    </Form>
   );
 }

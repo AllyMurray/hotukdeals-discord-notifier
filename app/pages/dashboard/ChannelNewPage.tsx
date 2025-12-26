@@ -1,17 +1,11 @@
 import { Title, Text, Stack, Paper } from "@mantine/core";
-import { ChannelForm, type ChannelFormValues } from "~/components/channels";
+import { ChannelForm } from "~/components/channels";
 
 export interface ChannelNewPageProps {
-  onSubmit: (values: ChannelFormValues) => void;
   onCancel: () => void;
-  isSubmitting?: boolean;
 }
 
-export function ChannelNewPage({
-  onSubmit,
-  onCancel,
-  isSubmitting,
-}: ChannelNewPageProps) {
+export function ChannelNewPage({ onCancel }: ChannelNewPageProps) {
   return (
     <Stack gap="lg" data-testid="channel-new-page">
       <div>
@@ -22,12 +16,7 @@ export function ChannelNewPage({
       </div>
 
       <Paper withBorder p="lg" maw={500}>
-        <ChannelForm
-          onSubmit={onSubmit}
-          onCancel={onCancel}
-          isSubmitting={isSubmitting}
-          submitLabel="Create Channel"
-        />
+        <ChannelForm onCancel={onCancel} submitLabel="Create Channel" />
       </Paper>
     </Stack>
   );
