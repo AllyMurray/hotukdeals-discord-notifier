@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck": "tsc --noEmit",
     "feed-parser": "npx tsx scripts/run-feed-parser.ts",
     "manage-config": "npx tsx scripts/manage-config.ts"
   },
@@ -31,12 +32,15 @@
     "chalk": "^5.3.0",
     "cheerio": "^1.1.0",
     "commander": "^12.1.0",
+    "electrodb": "^3.5.0",
     "ora": "^8.1.0",
     "sst": "3.17.10",
-    "undici": "^7.11.0"
+    "undici": "^7.11.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.150",
+    "@types/node": "^22.0.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   },
