@@ -102,7 +102,7 @@ export function DashboardHomePage({ stats }: DashboardHomePageProps) {
         }}
       >
         <Title order={2} mb={4} data-testid="page-title">
-          Command Center
+          Command Centre
         </Title>
         <Text c="dimmed" size="lg">
           Your deal hunting headquarters. Monitor and manage your notification setup.

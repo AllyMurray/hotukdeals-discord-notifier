@@ -151,7 +151,7 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
             </Text>
             <Text size="sm" c="dimmed" lh={1.6}>
               Send notifications to different Discord channels with separate
-              webhooks. Organize deals by category or priority.
+              webhooks. Organise deals by category or priority.
             </Text>
           </Box>
 

@@ -2,7 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 /* ============================================================================
-   CSS Custom Properties - The Command Center's Design Tokens
+   CSS Custom Properties - The Command Centre's Design Tokens
    ============================================================================ */
 
 :root {
@@ -56,7 +56,7 @@ body {
 }
 
 /* ============================================================================
-   Dark Mode - The Default Command Center Experience
+   Dark Mode - The Default Command Centre Experience
    ============================================================================ */
 
 [data-mantine-color-scheme="dark"] {
