@@ -527,6 +527,13 @@ body {
   backdrop-filter: blur(12px);
 }
 
+/* Mobile navbar needs higher z-index to appear above main content when opened */
+@media (max-width: 767px) {
+  .mantine-AppShell-navbar {
+    z-index: 200;
+  }
+}
+
 .app-logo {
   font-weight: 700;
   font-size: 1.25rem;
