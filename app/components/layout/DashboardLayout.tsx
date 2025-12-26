@@ -10,7 +10,9 @@ import {
   Box,
   Stack,
   Divider,
+  Burger,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import {
   IconHome,
   IconWebhook,
@@ -32,6 +34,8 @@ export interface DashboardLayoutProps {
 export function DashboardLayout({ user, children }: DashboardLayoutProps) {
   const location = useLocation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] =
+    useDisclosure();
 
   const navItems = [
     { href: "/dashboard", label: "Overview", icon: IconHome, exact: true },
@@ -47,14 +51,29 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
   return (
     <AppShell
       header={{ height: 64 }}
-      navbar={{ width: 240, breakpoint: "sm" }}
+      navbar={{
+        width: 240,
+        breakpoint: "sm",
+        collapsed: { mobile: !mobileOpened },
+      }}
       padding="lg"
       data-testid="dashboard-layout"
     >
       <AppShell.Header className="app-header">
         <Group h="100%" px="lg" justify="space-between">
-          {/* Logo */}
-          <Box
+          <Group gap="sm">
+            {/* Mobile menu toggle */}
+            <Burger
+              opened={mobileOpened}
+              onClick={toggleMobile}
+              hiddenFrom="sm"
+              size="sm"
+              aria-label="Toggle navigation"
+              data-testid="mobile-menu-toggle"
+            />
+
+            {/* Logo */}
+            <Box
             component="a"
             href="/"
             className="app-logo"
@@ -67,6 +86,7 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
               DealHunter
             </Text>
           </Box>
+          </Group>
 
           {/* Right side actions */}
           <Group gap="sm">
@@ -152,6 +172,7 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
               key={item.href}
               component="a"
               href={item.href}
+              onClick={closeMobile}
               label={
                 <Text size="sm" fw={500}>
                   {item.label}

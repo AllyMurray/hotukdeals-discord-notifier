@@ -21,15 +21,22 @@ describe("DashboardLayout", () => {
       expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
     });
 
-    it("renders the title", () => {
+    it("renders the logo", () => {
       render(
         <DashboardLayout user={mockUser}>
           <div>Content</div>
         </DashboardLayout>
       );
-      expect(screen.getByTestId("dashboard-title")).toHaveTextContent(
-        "HotUKDeals Notifier"
+      expect(screen.getByText("DealHunter")).toBeInTheDocument();
+    });
+
+    it("renders mobile menu toggle", () => {
+      render(
+        <DashboardLayout user={mockUser}>
+          <div>Content</div>
+        </DashboardLayout>
       );
+      expect(screen.getByTestId("mobile-menu-toggle")).toBeInTheDocument();
     });
 
     it("renders navigation", () => {
