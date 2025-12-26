@@ -11,6 +11,8 @@ import {
   Stack,
   Divider,
   Burger,
+  Drawer,
+  ScrollArea,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -34,8 +36,8 @@ export interface DashboardLayoutProps {
 export function DashboardLayout({ user, children }: DashboardLayoutProps) {
   const location = useLocation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] =
-    useDisclosure();
+  const [drawerOpened, { toggle: toggleDrawer, close: closeDrawer }] =
+    useDisclosure(false);
 
   const navItems = [
     { href: "/dashboard", label: "Overview", icon: IconHome, exact: true },
@@ -48,13 +50,54 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
     return location.pathname.startsWith(href);
   };
 
+  const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => (
+    <Stack gap={4}>
+      <Text
+        size="xs"
+        fw={600}
+        c="dimmed"
+        tt="uppercase"
+        px="sm"
+        mb={8}
+        style={{ letterSpacing: "0.08em" }}
+      >
+        Menu
+      </Text>
+
+      {navItems.map((item, index) => (
+        <NavLink
+          key={item.href}
+          component="a"
+          href={item.href}
+          onClick={onNavigate}
+          label={
+            <Text size="sm" fw={500}>
+              {item.label}
+            </Text>
+          }
+          leftSection={<item.icon size={20} stroke={1.5} />}
+          rightSection={
+            isActive(item.href, item.exact) ? (
+              <IconChevronRight size={14} stroke={2} />
+            ) : null
+          }
+          active={isActive(item.href, item.exact)}
+          data-testid={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
+          style={{
+            animation: `slideInLeft 0.3s ease-out ${index * 0.05}s forwards`,
+            opacity: 0,
+          }}
+        />
+      ))}
+    </Stack>
+  );
+
   return (
     <AppShell
       header={{ height: 64 }}
       navbar={{
         width: 240,
         breakpoint: "sm",
-        collapsed: { mobile: !mobileOpened },
       }}
       padding="lg"
       data-testid="dashboard-layout"
@@ -64,8 +107,8 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
           <Group gap="sm">
             {/* Mobile menu toggle */}
             <Burger
-              opened={mobileOpened}
-              onClick={toggleMobile}
+              opened={drawerOpened}
+              onClick={toggleDrawer}
               hiddenFrom="sm"
               size="sm"
               aria-label="Toggle navigation"
@@ -74,18 +117,18 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
 
             {/* Logo */}
             <Box
-            component="a"
-            href="/"
-            className="app-logo"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <Box className="logo-icon">
-              <IconFlame size={18} stroke={2} />
+              component="a"
+              href="/"
+              className="app-logo"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <Box className="logo-icon">
+                <IconFlame size={18} stroke={2} />
+              </Box>
+              <Text fw={700} size="lg" style={{ letterSpacing: "-0.02em" }}>
+                DealHunter
+              </Text>
             </Box>
-            <Text fw={700} size="lg" style={{ letterSpacing: "-0.02em" }}>
-              DealHunter
-            </Text>
-          </Box>
           </Group>
 
           {/* Right side actions */}
@@ -153,46 +196,14 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="md" className="app-navbar" data-testid="dashboard-nav">
-        <Stack gap={4}>
-          <Text
-            size="xs"
-            fw={600}
-            c="dimmed"
-            tt="uppercase"
-            px="sm"
-            mb={8}
-            style={{ letterSpacing: "0.08em" }}
-          >
-            Menu
-          </Text>
-
-          {navItems.map((item, index) => (
-            <NavLink
-              key={item.href}
-              component="a"
-              href={item.href}
-              onClick={closeMobile}
-              label={
-                <Text size="sm" fw={500}>
-                  {item.label}
-                </Text>
-              }
-              leftSection={<item.icon size={20} stroke={1.5} />}
-              rightSection={
-                isActive(item.href, item.exact) ? (
-                  <IconChevronRight size={14} stroke={2} />
-                ) : null
-              }
-              active={isActive(item.href, item.exact)}
-              data-testid={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
-              style={{
-                animation: `slideInLeft 0.3s ease-out ${index * 0.05}s forwards`,
-                opacity: 0,
-              }}
-            />
-          ))}
-        </Stack>
+      {/* Desktop Navbar */}
+      <AppShell.Navbar
+        p="md"
+        className="app-navbar"
+        data-testid="dashboard-nav"
+        visibleFrom="sm"
+      >
+        <NavItems />
 
         {/* Bottom section */}
         <Box mt="auto">
@@ -214,6 +225,56 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
           </Box>
         </Box>
       </AppShell.Navbar>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        opened={drawerOpened}
+        onClose={closeDrawer}
+        size="280px"
+        padding="md"
+        hiddenFrom="sm"
+        title={
+          <Text fw={600} size="lg">
+            Menu
+          </Text>
+        }
+        styles={{
+          content: {
+            backgroundColor:
+              "light-dark(var(--mantine-color-white), var(--slate-900))",
+          },
+        }}
+      >
+        <ScrollArea>
+          <NavItems onNavigate={closeDrawer} />
+
+          <Box mt="xl">
+            <Divider my="md" />
+            <Group gap="sm" mb="md">
+              <Avatar src={user.avatar} alt={user.username} size="md" radius="xl">
+                {user.username.charAt(0).toUpperCase()}
+              </Avatar>
+              <Box>
+                <Text size="sm" fw={500}>
+                  {user.username}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {user.email}
+                </Text>
+              </Box>
+            </Group>
+
+            <NavLink
+              component="a"
+              href="/auth/logout"
+              label="Sign out"
+              leftSection={<IconLogout size={18} stroke={1.5} />}
+              color="red"
+              onClick={closeDrawer}
+            />
+          </Box>
+        </ScrollArea>
+      </Drawer>
 
       <AppShell.Main data-testid="dashboard-main">
         <Box className="page-enter">{children}</Box>
