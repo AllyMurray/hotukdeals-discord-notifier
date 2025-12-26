@@ -1,5 +1,10 @@
-import { Card, Group, Text, Badge, Anchor, Stack } from "@mantine/core";
-import { IconExternalLink, IconClock } from "@tabler/icons-react";
+import { Group, Text, Badge, Anchor, Stack, Box } from "@mantine/core";
+import {
+  IconExternalLink,
+  IconClock,
+  IconTag,
+  IconBuildingStore,
+} from "@tabler/icons-react";
 
 export interface DealCardProps {
   id: string;
@@ -30,48 +35,71 @@ export function DealCard({
     : null;
 
   return (
-    <Card withBorder padding="md" radius="md" data-testid={`deal-card-${id}`}>
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start">
-          <Anchor
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            fw={500}
-            lineClamp={2}
-            style={{ flex: 1 }}
-            data-testid="deal-title"
-          >
-            {title}
-            <IconExternalLink size={14} style={{ marginLeft: 4 }} />
-          </Anchor>
-          {price && (
-            <Badge size="lg" variant="filled" data-testid="deal-price">
-              {price}
-            </Badge>
-          )}
-        </Group>
+    <Box className="deal-card" data-testid={`deal-card-${id}`}>
+      {/* Header with Title and Price */}
+      <Group justify="space-between" align="flex-start" gap="md" mb="sm">
+        <Anchor
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="deal-title"
+          lineClamp={2}
+          style={{ flex: 1 }}
+          data-testid="deal-title"
+        >
+          {title}
+          <IconExternalLink
+            size={14}
+            style={{
+              marginLeft: 6,
+              verticalAlign: "middle",
+              opacity: 0.5,
+            }}
+          />
+        </Anchor>
 
-        <Group gap="xs">
-          <Badge variant="light" size="sm" data-testid="search-term-badge">
-            {searchTerm}
-          </Badge>
-          {merchant && (
-            <Badge variant="outline" size="sm" data-testid="merchant-badge">
-              {merchant}
-            </Badge>
-          )}
-        </Group>
-
-        {formattedDate && (
-          <Group gap="xs" c="dimmed">
-            <IconClock size={14} />
-            <Text size="xs" data-testid="deal-timestamp">
-              {formattedDate}
-            </Text>
-          </Group>
+        {price && (
+          <Box className="badge-price" data-testid="deal-price">
+            {price}
+          </Box>
         )}
-      </Stack>
-    </Card>
+      </Group>
+
+      {/* Tags Row */}
+      <Group gap="xs" mb="sm">
+        <Badge
+          variant="light"
+          size="sm"
+          leftSection={<IconTag size={12} stroke={1.5} />}
+          data-testid="search-term-badge"
+        >
+          {searchTerm}
+        </Badge>
+
+        {merchant && (
+          <Badge
+            variant="outline"
+            size="sm"
+            leftSection={<IconBuildingStore size={12} stroke={1.5} />}
+            data-testid="merchant-badge"
+            style={{
+              borderColor: "var(--card-border)",
+            }}
+          >
+            {merchant}
+          </Badge>
+        )}
+      </Group>
+
+      {/* Timestamp */}
+      {formattedDate && (
+        <Group gap={6}>
+          <IconClock size={14} stroke={1.5} style={{ color: "var(--text-muted)" }} />
+          <Text size="xs" c="dimmed" data-testid="deal-timestamp">
+            {formattedDate}
+          </Text>
+        </Group>
+      )}
+    </Box>
   );
 }

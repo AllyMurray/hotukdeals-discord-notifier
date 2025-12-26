@@ -2,13 +2,19 @@ import {
   Title,
   Text,
   SimpleGrid,
-  Paper,
   Stack,
   Group,
-  ThemeIcon,
+  Box,
   Badge,
+  Button,
 } from "@mantine/core";
-import { IconWebhook, IconSearch, IconHistory } from "@tabler/icons-react";
+import {
+  IconWebhook,
+  IconSearch,
+  IconHistory,
+  IconPlus,
+  IconArrowRight,
+} from "@tabler/icons-react";
 
 export interface DashboardStats {
   channelCount: number;
@@ -20,72 +26,195 @@ export interface DashboardHomePageProps {
   stats: DashboardStats;
 }
 
-export function DashboardHomePage({ stats }: DashboardHomePageProps) {
+interface StatCardProps {
+  icon: React.ReactNode;
+  value: number | string;
+  label: string;
+  suffix?: React.ReactNode;
+  accentColor?: string;
+  delay?: number;
+}
+
+function StatCard({ icon, value, label, suffix, accentColor, delay = 0 }: StatCardProps) {
   return (
-    <Stack gap="lg" data-testid="dashboard-home-page">
-      <div>
-        <Title order={2} data-testid="page-title">
-          Dashboard
+    <Box
+      className="stat-card card-glass"
+      p="xl"
+      style={{
+        animation: `fadeInUp 0.5s ease-out ${delay}s forwards`,
+        opacity: 0,
+        borderRadius: 16,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Accent line at top */}
+      <Box
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: accentColor || "var(--gradient-flame)",
+        }}
+      />
+
+      <Group justify="space-between" align="flex-start">
+        <Stack gap="xs">
+          <Group gap="sm" align="center">
+            <Text className="stat-value">
+              {value}
+            </Text>
+            {suffix}
+          </Group>
+          <Text className="stat-label">{label}</Text>
+        </Stack>
+
+        <Box
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            background: "rgba(255, 144, 37, 0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--flame-500)",
+          }}
+        >
+          {icon}
+        </Box>
+      </Group>
+    </Box>
+  );
+}
+
+export function DashboardHomePage({ stats }: DashboardHomePageProps) {
+  const disabledCount = stats.configCount - stats.enabledConfigCount;
+
+  return (
+    <Stack gap="xl" data-testid="dashboard-home-page">
+      {/* Header */}
+      <Box
+        style={{
+          animation: "fadeInUp 0.5s ease-out forwards",
+        }}
+      >
+        <Title order={2} mb={4} data-testid="page-title">
+          Command Center
         </Title>
-        <Text c="dimmed">Manage your HotUKDeals Discord notifications</Text>
-      </div>
+        <Text c="dimmed" size="lg">
+          Your deal hunting headquarters. Monitor and manage your notification setup.
+        </Text>
+      </Box>
 
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-        <Paper p="lg" radius="md" withBorder data-testid="stat-channels">
-          <Group>
-            <ThemeIcon size="xl" radius="md" variant="light">
-              <IconWebhook size={24} />
-            </ThemeIcon>
-            <div>
-              <Text size="xl" fw={700}>
-                {stats.channelCount}
-              </Text>
-              <Text size="sm" c="dimmed">
-                Channels
-              </Text>
-            </div>
-          </Group>
-        </Paper>
+      {/* Stats Grid */}
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
+        <StatCard
+          icon={<IconWebhook size={24} stroke={1.5} />}
+          value={stats.channelCount}
+          label="Discord Channels"
+          delay={0.1}
+        />
 
-        <Paper p="lg" radius="md" withBorder data-testid="stat-search-terms">
-          <Group>
-            <ThemeIcon size="xl" radius="md" variant="light" color="green">
-              <IconSearch size={24} />
-            </ThemeIcon>
-            <div>
-              <Group gap="xs">
-                <Text size="xl" fw={700}>
-                  {stats.configCount}
-                </Text>
-                {stats.enabledConfigCount < stats.configCount && (
-                  <Badge size="sm" variant="light">
-                    {stats.enabledConfigCount} active
-                  </Badge>
-                )}
-              </Group>
-              <Text size="sm" c="dimmed">
-                Search Terms
-              </Text>
-            </div>
-          </Group>
-        </Paper>
+        <StatCard
+          icon={<IconSearch size={24} stroke={1.5} />}
+          value={stats.configCount}
+          label="Search Terms"
+          suffix={
+            disabledCount > 0 ? (
+              <Badge size="sm" variant="light" color="yellow">
+                {stats.enabledConfigCount} active
+              </Badge>
+            ) : null
+          }
+          delay={0.15}
+        />
 
-        <Paper p="lg" radius="md" withBorder data-testid="stat-notifications">
-          <Group>
-            <ThemeIcon size="xl" radius="md" variant="light" color="orange">
-              <IconHistory size={24} />
-            </ThemeIcon>
-            <div>
-              <Text size="xl" fw={700}>
-                --
-              </Text>
-              <Text size="sm" c="dimmed">
-                Deals Today
-              </Text>
-            </div>
-          </Group>
-        </Paper>
+        <StatCard
+          icon={<IconHistory size={24} stroke={1.5} />}
+          value="--"
+          label="Deals Today"
+          delay={0.2}
+        />
       </SimpleGrid>
+
+      {/* Quick Actions */}
+      <Box
+        style={{
+          animation: "fadeInUp 0.5s ease-out 0.25s forwards",
+          opacity: 0,
+        }}
+      >
+        <Text size="sm" fw={600} c="dimmed" tt="uppercase" mb="md" style={{ letterSpacing: "0.06em" }}>
+          Quick Actions
+        </Text>
+
+        <Group gap="md">
+          <Button
+            component="a"
+            href="/dashboard/channels/new"
+            variant="light"
+            leftSection={<IconPlus size={18} />}
+            radius="md"
+          >
+            Add Channel
+          </Button>
+
+          <Button
+            component="a"
+            href="/dashboard/channels"
+            variant="subtle"
+            rightSection={<IconArrowRight size={16} />}
+            radius="md"
+          >
+            View All Channels
+          </Button>
+
+          <Button
+            component="a"
+            href="/dashboard/deals"
+            variant="subtle"
+            rightSection={<IconArrowRight size={16} />}
+            radius="md"
+          >
+            View Deal History
+          </Button>
+        </Group>
+      </Box>
+
+      {/* Getting Started Hint (show only if no channels) */}
+      {stats.channelCount === 0 && (
+        <Box
+          className="empty-state"
+          style={{
+            animation: "fadeInUp 0.5s ease-out 0.3s forwards",
+            opacity: 0,
+          }}
+        >
+          <Box className="empty-state-icon">
+            <IconWebhook size={32} stroke={1.5} />
+          </Box>
+          <Title order={3} mb={8}>
+            Ready to start hunting?
+          </Title>
+          <Text c="dimmed" mb="lg" maw={400} mx="auto">
+            Create your first Discord channel to begin receiving deal notifications.
+            You'll need a Discord webhook URL.
+          </Text>
+          <Button
+            component="a"
+            href="/dashboard/channels/new"
+            size="lg"
+            radius="xl"
+            className="btn-flame"
+            leftSection={<IconPlus size={20} />}
+          >
+            Create Your First Channel
+          </Button>
+        </Box>
+      )}
     </Stack>
   );
 }

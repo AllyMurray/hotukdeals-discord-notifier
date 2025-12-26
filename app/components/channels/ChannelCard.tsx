@@ -1,17 +1,19 @@
 import {
-  Card,
   Group,
   Text,
   Badge,
   ActionIcon,
   Menu,
   Stack,
+  Box,
 } from "@mantine/core";
 import {
   IconDotsVertical,
   IconEdit,
   IconTrash,
-  IconWebhook,
+  IconBrandDiscord,
+  IconSearch,
+  IconChevronRight,
 } from "@tabler/icons-react";
 
 export interface ChannelCardProps {
@@ -39,45 +41,78 @@ export function ChannelCard({
   );
 
   return (
-    <Card
+    <Box
       component="a"
       href={`/dashboard/channels/${id}`}
-      withBorder
-      padding="lg"
-      radius="md"
+      className="channel-card"
+      p="lg"
       data-testid={`channel-card-${id}`}
-      style={{ textDecoration: "none", color: "inherit" }}
+      style={{
+        textDecoration: "none",
+        color: "inherit",
+        display: "block",
+        cursor: "pointer",
+      }}
     >
-      <Group justify="space-between" mb="xs">
+      {/* Header */}
+      <Group justify="space-between" mb="md">
         <Group gap="sm">
-          <IconWebhook size={20} />
-          <Text fw={600} data-testid="channel-name">
-            {name}
-          </Text>
+          <Box
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "linear-gradient(135deg, #5865F2, #4752C4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(88, 101, 242, 0.25)",
+            }}
+          >
+            <IconBrandDiscord size={20} color="white" stroke={1.5} />
+          </Box>
+          <Box>
+            <Text fw={600} size="md" data-testid="channel-name">
+              {name}
+            </Text>
+            <Text
+              size="xs"
+              c="dimmed"
+              ff="monospace"
+              lineClamp={1}
+              data-testid="webhook-url"
+            >
+              {maskedWebhook}
+            </Text>
+          </Box>
         </Group>
-        <Menu position="bottom-end" withArrow>
+
+        <Menu position="bottom-end" withArrow shadow="md" radius="md">
           <Menu.Target>
             <ActionIcon
               variant="subtle"
+              size="lg"
+              radius="md"
               onClick={(e) => e.preventDefault()}
               data-testid="channel-menu"
             >
-              <IconDotsVertical size={16} />
+              <IconDotsVertical size={18} stroke={1.5} />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
-              leftSection={<IconEdit size={14} />}
+              leftSection={<IconEdit size={16} stroke={1.5} />}
               onClick={(e) => {
                 e.preventDefault();
                 onEdit?.();
               }}
               data-testid="edit-channel"
             >
-              Edit
+              Edit Channel
             </Menu.Item>
+            <Menu.Divider />
             <Menu.Item
-              leftSection={<IconTrash size={14} />}
+              leftSection={<IconTrash size={16} stroke={1.5} />}
               color="red"
               onClick={(e) => {
                 e.preventDefault();
@@ -85,27 +120,43 @@ export function ChannelCard({
               }}
               data-testid="delete-channel"
             >
-              Delete
+              Delete Channel
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Group>
 
-      <Stack gap="xs">
-        <Text size="sm" c="dimmed" lineClamp={1} data-testid="webhook-url">
-          {maskedWebhook}
-        </Text>
+      {/* Stats Row */}
+      <Group gap="md" mb="md">
         <Group gap="xs">
-          <Badge variant="light" size="sm" data-testid="config-count">
-            {configCount} search term{configCount !== 1 ? "s" : ""}
-          </Badge>
-          {enabledConfigCount < configCount && (
-            <Badge variant="light" size="sm" color="yellow" data-testid="enabled-count">
-              {enabledConfigCount} active
-            </Badge>
-          )}
+          <IconSearch size={14} stroke={1.5} style={{ color: "var(--text-muted)" }} />
+          <Text size="sm" c="dimmed">
+            <Text component="span" fw={600} c="inherit">
+              {configCount}
+            </Text>{" "}
+            search term{configCount !== 1 ? "s" : ""}
+          </Text>
         </Group>
-      </Stack>
-    </Card>
+
+        {enabledConfigCount < configCount && (
+          <Badge
+            size="sm"
+            variant="light"
+            color="yellow"
+            data-testid="enabled-count"
+          >
+            {enabledConfigCount} active
+          </Badge>
+        )}
+      </Group>
+
+      {/* View Details Link */}
+      <Group justify="flex-end">
+        <Text size="xs" c="dimmed" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          View details
+          <IconChevronRight size={14} stroke={2} />
+        </Text>
+      </Group>
+    </Box>
   );
 }

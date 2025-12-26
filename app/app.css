@@ -1,48 +1,635 @@
+/* Google Fonts - Outfit for headings, clean geometric sans */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+/* ============================================================================
+   CSS Custom Properties - The Command Center's Design Tokens
+   ============================================================================ */
+
+:root {
+  /* Core palette */
+  --flame-50: #fff8f0;
+  --flame-100: #ffeddb;
+  --flame-200: #ffd9b3;
+  --flame-300: #ffc285;
+  --flame-400: #ffab57;
+  --flame-500: #ff9a38;
+  --flame-600: #ff9025;
+  --flame-700: #e67d00;
+  --flame-800: #cc6f00;
+  --flame-900: #a85a00;
+
+  --slate-50: #f5f5f6;
+  --slate-100: #e5e5e7;
+  --slate-200: #c8c8cc;
+  --slate-300: #a8a8af;
+  --slate-400: #888891;
+  --slate-500: #71717a;
+  --slate-600: #52525b;
+  --slate-700: #3f3f46;
+  --slate-800: #27272a;
+  --slate-900: #18181b;
+  --slate-950: #0f0f10;
+
+  /* Glow effects */
+  --glow-flame: 0 0 20px rgba(255, 144, 37, 0.4);
+  --glow-flame-intense: 0 0 30px rgba(255, 144, 37, 0.6), 0 0 60px rgba(255, 144, 37, 0.3);
+  --glow-success: 0 0 20px rgba(16, 185, 129, 0.4);
+  --glow-discord: 0 0 20px rgba(88, 101, 242, 0.4);
+
+  /* Gradients */
+  --gradient-flame: linear-gradient(135deg, var(--flame-500), var(--flame-700));
+  --gradient-dark: linear-gradient(180deg, var(--slate-800) 0%, var(--slate-900) 100%);
+  --gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+
+  /* Noise texture overlay */
+  --noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* ============================================================================
+   Base Styles
+   ============================================================================ */
+
 html,
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Light mode */
-[data-mantine-color-scheme="light"] {
-  --app-bg: #f8f9fa;
-  --header-bg: rgba(255, 255, 255, 0.95);
-}
+/* ============================================================================
+   Dark Mode - The Default Command Center Experience
+   ============================================================================ */
 
-/* Dark mode */
 [data-mantine-color-scheme="dark"] {
-  --app-bg: #1a1b1e;
-  --header-bg: rgba(26, 27, 30, 0.95);
+  --app-bg: var(--slate-950);
+  --app-bg-secondary: var(--slate-900);
+  --header-bg: rgba(15, 15, 16, 0.85);
+  --nav-bg: rgba(24, 24, 27, 0.6);
+  --card-bg: rgba(39, 39, 42, 0.6);
+  --card-border: rgba(63, 63, 70, 0.5);
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
 }
 
-/* Smooth transitions for theme switching */
-* {
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+[data-mantine-color-scheme="dark"] body {
+  background: var(--app-bg);
+  color: var(--text-primary);
 }
 
-/* Custom scrollbar */
+/* Subtle noise texture on dark backgrounds */
+[data-mantine-color-scheme="dark"] .mantine-AppShell-main {
+  position: relative;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-AppShell-main::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: var(--noise);
+  opacity: 0.015;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================================
+   Light Mode - Clean Alternative
+   ============================================================================ */
+
+[data-mantine-color-scheme="light"] {
+  --app-bg: #fafafa;
+  --app-bg-secondary: #f4f4f5;
+  --header-bg: rgba(250, 250, 250, 0.9);
+  --nav-bg: rgba(244, 244, 245, 0.8);
+  --card-bg: #ffffff;
+  --card-border: #e4e4e7;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+}
+
+[data-mantine-color-scheme="light"] body {
+  background: var(--app-bg);
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   Custom Scrollbar - Industrial Feel
+   ============================================================================ */
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--mantine-color-gray-1);
-  border-radius: 4px;
+  background: var(--slate-900);
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--mantine-color-gray-4);
-  border-radius: 4px;
+  background: var(--slate-600);
+  border-radius: 2px;
+  border: 2px solid var(--slate-900);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--mantine-color-gray-5);
+  background: var(--slate-500);
 }
 
-/* Focus visible */
+[data-mantine-color-scheme="light"] ::-webkit-scrollbar-track {
+  background: var(--slate-100);
+}
+
+[data-mantine-color-scheme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--slate-300);
+  border-color: var(--slate-100);
+}
+
+/* ============================================================================
+   Focus States - Flame Accent
+   ============================================================================ */
+
 :focus-visible {
-  outline: 2px solid var(--mantine-color-hotukdeals-5);
+  outline: 2px solid var(--flame-500);
   outline-offset: 2px;
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: var(--glow-flame);
+  }
+  50% {
+    box-shadow: var(--glow-flame-intense);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Staggered animation delays */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+/* ============================================================================
+   Custom Card Styles
+   ============================================================================ */
+
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-mantine-color-scheme="dark"] .card-hover:hover {
+  border-color: var(--flame-600);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), var(--glow-flame);
+}
+
+/* Glassmorphism card variant */
+.card-glass {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+}
+
+/* ============================================================================
+   Stat Cards - Glowing Metrics
+   ============================================================================ */
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-flame);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-value {
+  font-family: "Outfit", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 2.5rem;
+  line-height: 1;
+  background: var(--gradient-flame);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+   Navigation Enhancements
+   ============================================================================ */
+
+[data-mantine-color-scheme="dark"] .mantine-NavLink-root[data-active="true"] {
+  background: rgba(255, 144, 37, 0.15);
+  border-left: 3px solid var(--flame-500);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-NavLink-root:hover:not([data-active="true"]) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================================
+   Badge Enhancements
+   ============================================================================ */
+
+.badge-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.badge-price {
+  background: var(--gradient-flame);
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(255, 144, 37, 0.3);
+}
+
+/* ============================================================================
+   Button Enhancements
+   ============================================================================ */
+
+.btn-flame {
+  background: var(--gradient-flame);
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 144, 37, 0.35);
+  transition: all 0.25s ease;
+}
+
+.btn-flame:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 144, 37, 0.45);
+}
+
+.btn-flame:active {
+  transform: translateY(0);
+}
+
+/* Discord button special styling */
+.btn-discord {
+  background: linear-gradient(135deg, #5865F2, #4752C4);
+  border: none;
+  box-shadow: 0 4px 14px rgba(88, 101, 242, 0.35);
+}
+
+.btn-discord:hover {
+  box-shadow: 0 6px 20px rgba(88, 101, 242, 0.45), var(--glow-discord);
+}
+
+/* ============================================================================
+   Hero Section
+   ============================================================================ */
+
+.hero-section {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  right: -50%;
+  bottom: -50%;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 144, 37, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(88, 101, 242, 0.06) 0%, transparent 50%);
+  animation: float 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero-title {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.hero-title-accent {
+  background: var(--gradient-flame);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: clamp(1.125rem, 2.5vw, 1.375rem);
+  color: var(--text-secondary);
+  max-width: 540px;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   Feature Cards
+   ============================================================================ */
+
+.feature-card {
+  position: relative;
+  padding: 2rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 144, 37, 0.3);
+}
+
+[data-mantine-color-scheme="dark"] .feature-card:hover {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.feature-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 144, 37, 0.12);
+  color: var(--flame-500);
+  margin-bottom: 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover .feature-icon {
+  transform: scale(1.08);
+  background: rgba(255, 144, 37, 0.18);
+  box-shadow: var(--glow-flame);
+}
+
+/* ============================================================================
+   Deal Cards
+   ============================================================================ */
+
+.deal-card {
+  position: relative;
+  padding: 1.25rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  transition: all 0.25s ease;
+}
+
+.deal-card:hover {
+  border-color: rgba(255, 144, 37, 0.4);
+}
+
+[data-mantine-color-scheme="dark"] .deal-card:hover {
+  background: rgba(39, 39, 42, 0.8);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.deal-title {
+  font-weight: 600;
+  line-height: 1.4;
+  transition: color 0.2s ease;
+}
+
+.deal-title:hover {
+  color: var(--flame-500);
+}
+
+/* ============================================================================
+   Channel Cards
+   ============================================================================ */
+
+.channel-card {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.channel-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--gradient-flame);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.channel-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 144, 37, 0.3);
+}
+
+.channel-card:hover::before {
+  opacity: 1;
+}
+
+[data-mantine-color-scheme="dark"] .channel-card:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================================================
+   Header & Navigation
+   ============================================================================ */
+
+.app-header {
+  background: var(--header-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.app-navbar {
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+}
+
+.app-logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--gradient-flame);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   Empty States
+   ============================================================================ */
+
+.empty-state {
+  padding: 4rem 2rem;
+  text-align: center;
+  border: 2px dashed var(--card-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.empty-state-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 144, 37, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: var(--flame-500);
+}
+
+/* ============================================================================
+   Forms
+   ============================================================================ */
+
+[data-mantine-color-scheme="dark"] .mantine-TextInput-input,
+[data-mantine-color-scheme="dark"] .mantine-Textarea-input,
+[data-mantine-color-scheme="dark"] .mantine-Select-input {
+  background: rgba(39, 39, 42, 0.5);
+  border-color: var(--card-border);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-TextInput-input:focus,
+[data-mantine-color-scheme="dark"] .mantine-Textarea-input:focus,
+[data-mantine-color-scheme="dark"] .mantine-Select-input:focus {
+  border-color: var(--flame-500);
+  box-shadow: 0 0 0 3px rgba(255, 144, 37, 0.15);
+}
+
+/* ============================================================================
+   Page Transitions
+   ============================================================================ */
+
+.page-enter {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.page-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================================
+   Responsive Adjustments
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: 60vh;
+    padding: 2rem 1rem;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+  }
+
+  .feature-card {
+    padding: 1.5rem;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
