@@ -106,7 +106,7 @@ export function AdminPage({ users, currentUserId }: AdminPageProps) {
           </Title>
         </Group>
         <Text c="dimmed" size="lg">
-          Manage who can access DealHunter.
+          Manage who can access DealPing.
         </Text>
       </Box>
 
@@ -248,7 +248,7 @@ export function AdminPage({ users, currentUserId }: AdminPageProps) {
         centered
       >
         <Text mb="lg">
-          Are you sure you want to remove this user from the allowlist? They will no longer be able to access DealHunter.
+          Are you sure you want to remove this user from the allowlist? They will no longer be able to access DealPing.
         </Text>
         <Group justify="flex-end">
           <Button variant="subtle" onClick={() => setDeleteUserId(null)}>

@@ -131,7 +131,7 @@ export function DashboardLayout({ user, children, isAdmin = false }: DashboardLa
                 <IconFlame size={18} stroke={2} />
               </Box>
               <Text fw={700} size="lg" style={{ letterSpacing: "-0.02em" }}>
-                DealHunter
+                DealPing
               </Text>
             </Box>
           </Group>

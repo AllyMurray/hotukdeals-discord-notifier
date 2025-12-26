@@ -83,7 +83,7 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
                   color: colorScheme === "dark" ? "#fafafa" : "#18181b",
                 }}
               >
-                DealHunter
+                DealPing
               </Text>
             </Group>
 

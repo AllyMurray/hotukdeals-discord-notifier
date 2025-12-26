@@ -27,7 +27,7 @@ describe("DashboardLayout", () => {
           <div>Content</div>
         </DashboardLayout>
       );
-      expect(screen.getByText("DealHunter")).toBeInTheDocument();
+      expect(screen.getByText("DealPing")).toBeInTheDocument();
     });
 
     it("renders mobile menu toggle", () => {
