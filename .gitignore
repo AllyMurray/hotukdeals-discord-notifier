@@ -6,3 +6,7 @@ node_modules
 
 # Migration state file
 .migration-state.json
+
+# React Router build output
+build
+.react-router

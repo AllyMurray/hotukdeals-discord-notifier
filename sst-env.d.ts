@@ -5,6 +5,10 @@
 
 declare module "sst" {
   export interface Resource {
+    "Auth": {
+      "type": "sst.aws.Auth"
+      "url": string
+    }
     "ConfigTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -13,9 +17,25 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "DiscordClientId": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "DiscordClientSecret": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "HotUKDealsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
+    }
+    "SessionSecret": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "Site": {
+      "type": "sst.aws.React"
+      "url": string
     }
   }
 }

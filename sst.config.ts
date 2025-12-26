@@ -11,5 +11,8 @@ export default $config({
   },
   async run() {
     await import("./infra/notifier-lambda");
+    await import("./infra/secrets");
+    await import("./infra/auth");
+    await import("./infra/site");
   },
 });

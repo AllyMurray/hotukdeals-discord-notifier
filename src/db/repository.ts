@@ -1,8 +1,6 @@
 import { HotUKDealsService } from './service';
+import type { Channel, SearchTermConfig, Deal } from './schemas';
 import {
-  Channel,
-  SearchTermConfig,
-  Deal,
   parseChannel,
   parseChannels,
   parseSearchTermConfig,

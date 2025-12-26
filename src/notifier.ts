@@ -1,4 +1,4 @@
-import { Handler } from 'aws-lambda';
+import type { Handler } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import middy from '@middy/core';

@@ -1,0 +1,52 @@
+import { Title, Text, Stack, Paper, Anchor, Group } from "@mantine/core";
+import { IconArrowLeft } from "@tabler/icons-react";
+import { ChannelForm, type ChannelFormValues } from "~/components/channels";
+
+export interface ChannelEditPageProps {
+  channel: {
+    id: string;
+    name: string;
+    webhookUrl: string;
+  };
+  onSubmit: (values: ChannelFormValues) => void;
+  onCancel: () => void;
+  isSubmitting?: boolean;
+}
+
+export function ChannelEditPage({
+  channel,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+}: ChannelEditPageProps) {
+  return (
+    <Stack gap="lg" data-testid="channel-edit-page">
+      <Anchor href={`/dashboard/channels/${channel.id}`} c="dimmed" size="sm">
+        <Group gap="xs">
+          <IconArrowLeft size={16} />
+          Back to Channel
+        </Group>
+      </Anchor>
+
+      <div>
+        <Title order={2} data-testid="page-title">
+          Edit Channel
+        </Title>
+        <Text c="dimmed">Update channel settings for {channel.name}</Text>
+      </div>
+
+      <Paper withBorder p="lg" maw={500}>
+        <ChannelForm
+          initialValues={{
+            name: channel.name,
+            webhookUrl: channel.webhookUrl,
+          }}
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          isSubmitting={isSubmitting}
+          submitLabel="Save Changes"
+        />
+      </Paper>
+    </Stack>
+  );
+}

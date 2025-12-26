@@ -1,0 +1,48 @@
+html,
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light mode */
+[data-mantine-color-scheme="light"] {
+  --app-bg: #f8f9fa;
+  --header-bg: rgba(255, 255, 255, 0.95);
+}
+
+/* Dark mode */
+[data-mantine-color-scheme="dark"] {
+  --app-bg: #1a1b1e;
+  --header-bg: rgba(26, 27, 30, 0.95);
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mantine-color-gray-1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mantine-color-gray-4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mantine-color-gray-5);
+}
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--mantine-color-hotukdeals-5);
+  outline-offset: 2px;
+}

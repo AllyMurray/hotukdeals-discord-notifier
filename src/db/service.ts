@@ -1,5 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { Service, EntityConfiguration } from 'electrodb';
+import { Service } from 'electrodb';
+import type { EntityConfiguration } from 'electrodb';
 import { ChannelEntity, SearchTermConfigEntity, DealEntity } from './entities';
 
 // Create DynamoDB client
