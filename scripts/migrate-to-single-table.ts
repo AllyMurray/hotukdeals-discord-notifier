@@ -165,11 +165,12 @@ function generateChannelName(webhookUrl: string, index: number): string {
 const TWELVE_MONTHS_IN_SECONDS = 365 * 24 * 60 * 60;
 
 // Transform old deal to new format for ElectroDB
+// Note: ElectroDB uses lowercase key prefixes
 function transformDeal(oldDeal: OldDeal): Record<string, unknown> {
   const now = Date.now();
   return {
-    pk: `DEAL#${oldDeal.id}`,
-    sk: `DEAL#${oldDeal.id}`,
+    pk: `deal#${oldDeal.id}`,
+    sk: `deal#${oldDeal.id}`,
     dealId: oldDeal.id,
     searchTerm: oldDeal.searchTerm || 'unknown',
     title: oldDeal.title || '',
@@ -185,13 +186,14 @@ function transformDeal(oldDeal: OldDeal): Record<string, unknown> {
 }
 
 // Create a Channel entity from webhook URL
+// Note: ElectroDB uses lowercase key prefixes
 function createChannelItem(webhookUrl: string, name: string, channelId: string): Record<string, unknown> {
   const now = new Date().toISOString();
   return {
-    pk: `CHANNEL#${channelId}`,
-    sk: `CHANNEL#${channelId}`,
-    gsi1pk: 'CHANNELS',
-    gsi1sk: `CHANNEL#${channelId}`,
+    pk: `channel#${channelId}`,
+    sk: `channel#${channelId}`,
+    gsi1pk: 'channels',
+    gsi1sk: `channel#${channelId}`,
     channelId,
     name,
     webhookUrl,
@@ -203,15 +205,16 @@ function createChannelItem(webhookUrl: string, name: string, channelId: string):
 }
 
 // Transform old config to new format for ElectroDB (using channelId)
+// Note: ElectroDB uses lowercase key prefixes
 function transformConfig(oldConfig: OldConfig, channelId: string): Record<string, unknown> {
   const now = new Date().toISOString();
   return {
-    pk: `CHANNEL#${channelId}`,
-    sk: `CONFIG#${oldConfig.searchTerm}`,
-    gsi1pk: 'CONFIGS',
+    pk: `channel#${channelId}`,
+    sk: `config#${oldConfig.searchTerm}`,
+    gsi1pk: 'configs',
     gsi1sk: `${channelId}#${oldConfig.searchTerm}`,
-    gsi2pk: `SEARCHTERM#${oldConfig.searchTerm}`,
-    gsi2sk: `CHANNEL#${channelId}`,
+    gsi2pk: `searchterm#${oldConfig.searchTerm}`,
+    gsi2sk: `channel#${channelId}`,
     channelId,
     searchTerm: oldConfig.searchTerm,
     enabled: oldConfig.enabled !== false,
@@ -335,6 +338,8 @@ async function migrateConfigs(): Promise<{ channels: number; configs: number; sk
 
           if (isDryRun) {
             console.log(chalk.dim(`  [DRY RUN] Would create channel: ${channelName} (ID: ${channelId.slice(0, 8)}...)`));
+            // Still track in memory so config migration dry run works
+            state.channels[webhookUrl] = { channelId, name: channelName };
           } else {
             await ddb.send(
               new PutCommand({
