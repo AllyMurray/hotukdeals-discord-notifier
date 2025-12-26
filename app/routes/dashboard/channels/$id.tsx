@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useRevalidator } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useRevalidator, useSearchParams } from "react-router";
 import type { Route } from "./+types/$id";
 import { ChannelDetailPage } from "~/pages/dashboard";
 import {
@@ -137,6 +137,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [configModal, setConfigModal] = useState<{
     open: boolean;
@@ -152,6 +153,14 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+
+  // Auto-open the add search term modal when coming from channel creation
+  useEffect(() => {
+    if (searchParams.get("addSearch") === "true") {
+      setConfigModal({ open: true, config: null, isEditing: false });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleAddConfig = () => {
     setConfigModal({ open: true, config: null, isEditing: false });

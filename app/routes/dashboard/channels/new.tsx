@@ -42,7 +42,7 @@ export default function NewChannel() {
         message: "Your new channel has been created successfully.",
         color: "green",
       });
-      navigate(`/dashboard/channels/${result.channelId}`);
+      navigate(`/dashboard/channels/${result.channelId}?addSearch=true`);
     } else {
       notifications.show({
         title: "Error",
