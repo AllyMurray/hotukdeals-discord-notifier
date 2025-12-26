@@ -24,6 +24,7 @@ import {
   IconMoon,
   IconFlame,
   IconChevronRight,
+  IconShield,
 } from "@tabler/icons-react";
 import { useLocation } from "react-router";
 import type { User } from "~/lib/auth";
@@ -31,9 +32,10 @@ import type { User } from "~/lib/auth";
 export interface DashboardLayoutProps {
   user: User;
   children: React.ReactNode;
+  isAdmin?: boolean;
 }
 
-export function DashboardLayout({ user, children }: DashboardLayoutProps) {
+export function DashboardLayout({ user, children, isAdmin = false }: DashboardLayoutProps) {
   const location = useLocation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const [drawerOpened, { toggle: toggleDrawer, close: closeDrawer }] =
@@ -43,6 +45,9 @@ export function DashboardLayout({ user, children }: DashboardLayoutProps) {
     { href: "/dashboard", label: "Overview", icon: IconHome, exact: true },
     { href: "/dashboard/channels", label: "Channels", icon: IconWebhook },
     { href: "/dashboard/deals", label: "Deal History", icon: IconHistory },
+    ...(isAdmin
+      ? [{ href: "/dashboard/admin", label: "Admin", icon: IconShield }]
+      : []),
   ];
 
   const isActive = (href: string, exact?: boolean) => {

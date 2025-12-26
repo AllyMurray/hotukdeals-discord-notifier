@@ -3,6 +3,7 @@ import { authClient } from "./client.server";
 import { getSession, createAuthSession } from "./session.server";
 import { subjects } from "../../../functions/subjects";
 import type { User } from "./schemas";
+import { isUserAdmin } from "~/db/repository.server";
 
 interface AuthResult {
   user: User;
@@ -70,4 +71,18 @@ export async function requireAnonymous(request: Request): Promise<void> {
   if (result) {
     throw redirect("/dashboard");
   }
+}
+
+/**
+ * Require admin - redirect to dashboard if not admin
+ */
+export async function requireAdmin(request: Request): Promise<AuthResult> {
+  const result = await requireUser(request);
+  const admin = await isUserAdmin({ discordId: result.user.id });
+
+  if (!admin) {
+    throw redirect("/dashboard");
+  }
+
+  return result;
 }

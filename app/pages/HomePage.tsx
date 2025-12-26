@@ -23,6 +23,7 @@ import {
   IconSun,
   IconMoon,
   IconSparkles,
+  IconLock,
 } from "@tabler/icons-react";
 
 export interface HomePageProps {
@@ -237,7 +238,23 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
               </Text>
             </Stack>
 
-            {error && (
+            {error === "not_allowed" && (
+              <Alert
+                icon={<IconLock size={18} />}
+                title="Invite Only"
+                color="orange"
+                radius="lg"
+                data-testid="not-allowed-error"
+                style={{
+                  maxWidth: 400,
+                  animation: "fadeInUp 0.5s ease-out forwards",
+                }}
+              >
+                This app is currently invite-only. Your Discord account is not on the allowlist.
+              </Alert>
+            )}
+
+            {error && error !== "not_allowed" && (
               <Alert
                 icon={<IconAlertCircle size={18} />}
                 title="Authentication Failed"
@@ -285,6 +302,33 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
                 >
                   Open Dashboard
                 </Button>
+              ) : error === "not_allowed" ? (
+                <Box
+                  data-testid="invite-only-badge"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "0.75rem 1.5rem",
+                    borderRadius: 50,
+                    background:
+                      colorScheme === "dark"
+                        ? "rgba(255, 144, 37, 0.15)"
+                        : "rgba(255, 144, 37, 0.1)",
+                    border: `1px solid ${colorScheme === "dark" ? "rgba(255, 144, 37, 0.3)" : "rgba(255, 144, 37, 0.2)"}`,
+                  }}
+                >
+                  <IconLock
+                    size={20}
+                    style={{ color: "var(--flame-500)" }}
+                  />
+                  <Text
+                    fw={600}
+                    style={{ color: "var(--flame-500)" }}
+                  >
+                    Private Beta
+                  </Text>
+                </Box>
               ) : (
                 <Button
                   component="a"
@@ -340,7 +384,9 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
                       : "var(--slate-500)",
                 }}
               >
-                Free to use · Set up in minutes
+                {error === "not_allowed"
+                  ? "Contact the admin for access"
+                  : "Free to use · Invite only"}
               </Text>
             </Group>
           </Stack>

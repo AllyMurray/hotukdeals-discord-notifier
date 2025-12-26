@@ -1,7 +1,7 @@
 import { auth } from "./auth";
-import { sessionSecret } from "./secrets";
+import { sessionSecret, adminDiscordId } from "./secrets";
 import { hotukdealsTable } from "./notifier-lambda";
 
 export const site = new sst.aws.React("Site", {
-  link: [auth, sessionSecret, hotukdealsTable],
+  link: [auth, sessionSecret, adminDiscordId, hotukdealsTable],
 });

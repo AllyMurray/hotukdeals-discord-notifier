@@ -1,11 +1,13 @@
 import { HotUKDealsService } from './service';
-import type { Channel, SearchTermConfig, Deal } from './schemas';
+import type { Channel, SearchTermConfig, Deal, AllowedUser } from './schemas';
 import {
   parseChannel,
   parseChannels,
   parseSearchTermConfig,
   parseSearchTermConfigs,
   parseDeal,
+  parseAllowedUser,
+  parseAllowedUsers,
 } from './schemas';
 
 // ============================================================================
@@ -47,6 +49,17 @@ export type CreateDealParams = {
   price?: string;
   merchant?: string;
 };
+
+// AllowedUser params
+export type IsUserAllowedParams = { discordId: string };
+export type IsUserAdminParams = { discordId: string };
+export type GetAllowedUserParams = { discordId: string };
+export type AddAllowedUserParams = {
+  discordId: string;
+  addedBy: string;
+  isAdmin?: boolean;
+};
+export type RemoveAllowedUserParams = { discordId: string };
 
 // ============================================================================
 // Channel Repository
@@ -328,4 +341,112 @@ export async function getEnabledConfigsGroupedByChannel(): Promise<ChannelWithCo
       return { channel, configs };
     })
     .filter((item): item is ChannelWithConfigs => item !== null);
+}
+
+// ============================================================================
+// AllowedUser Repository
+// ============================================================================
+
+/**
+ * Check if a Discord user is allowed to access the app
+ */
+export async function isUserAllowed({ discordId }: IsUserAllowedParams): Promise<boolean> {
+  const result = await HotUKDealsService.entities.allowedUser.query
+    .byDiscordId({ discordId })
+    .go();
+  return result.data.length > 0;
+}
+
+/**
+ * Check if a Discord user is an admin
+ */
+export async function isUserAdmin({ discordId }: IsUserAdminParams): Promise<boolean> {
+  const result = await HotUKDealsService.entities.allowedUser.query
+    .byDiscordId({ discordId })
+    .go();
+  const user = result.data[0];
+  return user?.isAdmin === true;
+}
+
+/**
+ * Get an allowed user by Discord ID
+ */
+export async function getAllowedUser({ discordId }: GetAllowedUserParams): Promise<AllowedUser | null> {
+  const result = await HotUKDealsService.entities.allowedUser.query
+    .byDiscordId({ discordId })
+    .go();
+  const data = result.data[0];
+  return data ? parseAllowedUser(data) : null;
+}
+
+/**
+ * Get all allowed users
+ */
+export async function getAllowedUsers(): Promise<AllowedUser[]> {
+  const result = await HotUKDealsService.entities.allowedUser.query
+    .allUsers({})
+    .go();
+  return parseAllowedUsers(result.data);
+}
+
+/**
+ * Add a user to the allowlist
+ */
+export async function addAllowedUser({ discordId, addedBy, isAdmin = false }: AddAllowedUserParams): Promise<AllowedUser> {
+  const result = await HotUKDealsService.entities.allowedUser
+    .put({
+      discordId,
+      addedBy,
+      isAdmin,
+    })
+    .go();
+  return parseAllowedUser(result.data);
+}
+
+/**
+ * Update a user's admin status
+ */
+export async function updateAllowedUserAdmin({ discordId, isAdmin }: { discordId: string; isAdmin: boolean }): Promise<void> {
+  await HotUKDealsService.entities.allowedUser
+    .patch({ discordId })
+    .set({ isAdmin })
+    .go();
+}
+
+/**
+ * Update a user's profile info (username, avatar)
+ */
+export async function updateAllowedUserProfile({ discordId, username, avatar }: { discordId: string; username: string; avatar?: string }): Promise<void> {
+  await HotUKDealsService.entities.allowedUser
+    .patch({ discordId })
+    .set({ username, avatar })
+    .go();
+}
+
+/**
+ * Remove a user from the allowlist
+ */
+export async function removeAllowedUser({ discordId }: RemoveAllowedUserParams): Promise<void> {
+  await HotUKDealsService.entities.allowedUser
+    .delete({ discordId })
+    .go();
+}
+
+/**
+ * Seed an admin user if no users exist (for initial setup)
+ */
+export async function seedAdminUser({ discordId }: { discordId: string }): Promise<AllowedUser | null> {
+  // Check if any users exist
+  const existingUsers = await getAllowedUsers();
+  if (existingUsers.length > 0) {
+    // Users already exist, don't seed
+    return null;
+  }
+
+  // Create the admin user
+  return addAllowedUser({
+    discordId,
+    addedBy: 'system',
+    isAdmin: true,
+  });
 }

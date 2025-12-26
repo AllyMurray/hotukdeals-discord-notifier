@@ -16,6 +16,8 @@ export default [
     route("dashboard/channels/:id/edit", "routes/dashboard/channels/$id.edit.tsx"),
     // Deal history
     route("dashboard/deals", "routes/dashboard/deals.tsx"),
+    // Admin (allowlist management)
+    route("dashboard/admin", "routes/dashboard/admin.tsx"),
   ]),
   // API routes
   route("api/channels", "routes/api/channels/index.ts"),
@@ -23,4 +25,7 @@ export default [
   route("api/channels/:id/test-notification", "routes/api/channels/test-notification.ts"),
   route("api/configs", "routes/api/configs/index.ts"),
   route("api/configs/:channelId/:searchTerm", "routes/api/configs/$channelId.$searchTerm.ts"),
+  // Admin API routes
+  route("api/admin/users", "routes/api/admin/users.ts"),
+  route("api/admin/users/:discordId", "routes/api/admin/users.$discordId.ts"),
 ] satisfies RouteConfig;

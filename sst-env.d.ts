@@ -5,6 +5,10 @@
 
 declare module "sst" {
   export interface Resource {
+    "AdminDiscordId": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "Auth": {
       "type": "sst.aws.Auth"
       "url": string

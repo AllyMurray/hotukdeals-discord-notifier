@@ -36,10 +36,21 @@ export const DealSchema = z.object({
   ttl: z.number().optional(),
 });
 
+// AllowedUser schema
+export const AllowedUserSchema = z.object({
+  discordId: z.string(),
+  username: z.string().optional(),
+  avatar: z.string().optional(),
+  isAdmin: z.boolean().default(false),
+  addedBy: z.string(),
+  addedAt: z.string().optional(),
+});
+
 // Inferred types from schemas
 export type Channel = z.infer<typeof ChannelSchema>;
 export type SearchTermConfig = z.infer<typeof SearchTermConfigSchema>;
 export type Deal = z.infer<typeof DealSchema>;
+export type AllowedUser = z.infer<typeof AllowedUserSchema>;
 
 // Parse functions with defaults applied
 export function parseChannel(data: unknown): Channel {
@@ -54,6 +65,10 @@ export function parseDeal(data: unknown): Deal {
   return DealSchema.parse(data);
 }
 
+export function parseAllowedUser(data: unknown): AllowedUser {
+  return AllowedUserSchema.parse(data);
+}
+
 // Safe parse functions for arrays
 export function parseChannels(data: unknown[]): Channel[] {
   return data.map((item) => ChannelSchema.parse(item));
@@ -65,4 +80,8 @@ export function parseSearchTermConfigs(data: unknown[]): SearchTermConfig[] {
 
 export function parseDeals(data: unknown[]): Deal[] {
   return data.map((item) => DealSchema.parse(item));
+}
+
+export function parseAllowedUsers(data: unknown[]): AllowedUser[] {
+  return data.map((item) => AllowedUserSchema.parse(item));
 }
