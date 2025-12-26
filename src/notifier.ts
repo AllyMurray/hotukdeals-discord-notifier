@@ -296,6 +296,72 @@ const createDealEmbed = (deal: DealWithSearchTerm): DiscordEmbed => {
   };
 };
 
+// Format a single deal for the content preview (lock screen friendly)
+const formatDealPreview = (deal: DealWithSearchTerm): string => {
+  let preview = deal.title;
+
+  // Truncate long titles
+  if (preview.length > 60) {
+    preview = preview.substring(0, 57) + '...';
+  }
+
+  // Add price and merchant inline
+  const details: string[] = [];
+  if (deal.price) details.push(deal.price);
+  if (deal.merchant) details.push(deal.merchant);
+
+  if (details.length > 0) {
+    preview += ` - ${details.join(' @ ')}`;
+  }
+
+  return preview;
+};
+
+// Create content string optimized for lock screen visibility
+const createLockScreenContent = (deals: DealWithSearchTerm[]): string => {
+  const searchTerms = Array.from(new Set(deals.map((d) => d.searchTerm)));
+  const searchTermsText = searchTerms.join(', ');
+
+  if (deals.length === 1) {
+    // Single deal: show full details
+    const deal = deals[0];
+    let content = `🆕 **${searchTermsText}**\n`;
+
+    // Price and merchant on same line
+    const details: string[] = [];
+    if (deal.price) details.push(`💰 ${deal.price}`);
+    if (deal.merchant) details.push(`🏪 ${deal.merchant}`);
+    if (details.length > 0) {
+      content += `${details.join('  •  ')}\n`;
+    }
+
+    // Title (truncate if too long)
+    let title = deal.title;
+    if (title.length > 80) {
+      title = title.substring(0, 77) + '...';
+    }
+    content += `> ${title}`;
+
+    return content;
+  }
+
+  // Multiple deals: show list with key info
+  let content = `🆕 **${deals.length} new deals** for **${searchTermsText}**\n`;
+
+  // Show up to 5 deals in the preview
+  const previewDeals = deals.slice(0, 5);
+  for (const deal of previewDeals) {
+    content += `• ${formatDealPreview(deal)}\n`;
+  }
+
+  // Indicate if there are more deals
+  if (deals.length > 5) {
+    content += `_...and ${deals.length - 5} more_`;
+  }
+
+  return content.trim();
+};
+
 // Send combined Discord message for all new deals using rich embeds
 const sendCombinedDiscordMessage = async (
   webhookUrl: string,
@@ -317,24 +383,10 @@ const sendCombinedDiscordMessage = async (
       const chunk = dealChunks[chunkIndex];
       const embeds = chunk.map(createDealEmbed);
 
-      // Create summary content for the first message
+      // Create lock screen friendly content for the first message
       let content = '';
       if (chunkIndex === 0) {
-        const hotDealsCount = deals.filter(
-          (d) => d.temperature === 'hot' || (d.score && d.score >= 100)
-        ).length;
-        const warmDealsCount = deals.filter(
-          (d) => d.temperature === 'warm' || (d.score && d.score >= 50 && d.score < 100)
-        ).length;
-
-        content = `🆕 **${totalDeals} new deal${totalDeals > 1 ? 's' : ''}** found for: **${searchTerms.join(', ')}**`;
-
-        if (hotDealsCount > 0) {
-          content += `\n🔥 ${hotDealsCount} hot deal${hotDealsCount > 1 ? 's' : ''}`;
-        }
-        if (warmDealsCount > 0) {
-          content += `${hotDealsCount > 0 ? ' • ' : '\n'}⭐ ${warmDealsCount} warm deal${warmDealsCount > 1 ? 's' : ''}`;
-        }
+        content = createLockScreenContent(deals);
       }
 
       const payload: DiscordWebhookPayload = { embeds };
