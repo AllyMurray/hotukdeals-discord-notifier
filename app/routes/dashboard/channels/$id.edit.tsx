@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect } from "react";
+import { useNavigate, useFetcher } from "react-router";
+import { notifications } from "@mantine/notifications";
 import type { Route } from "./+types/$id.edit";
 import { ChannelEditPage } from "~/pages/dashboard";
 import { type ChannelFormValues } from "~/components/channels";
@@ -35,32 +36,46 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { success: false, error: "Channel not found or not authorized" };
   }
 
-  await updateChannel({
-    id: params.id!,
-    name,
-    webhookUrl,
-  });
-
-  return { success: true };
+  try {
+    await updateChannel({
+      id: params.id!,
+      name,
+      webhookUrl,
+    });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Failed to update channel" };
+  }
 }
 
 export default function EditChannel({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fetcher = useFetcher<typeof action>();
 
-  const handleSubmit = async (values: ChannelFormValues) => {
-    setIsSubmitting(true);
+  const isSubmitting = fetcher.state === "submitting";
 
-    const formData = new FormData();
-    formData.set("name", values.name);
-    formData.set("webhookUrl", values.webhookUrl);
+  useEffect(() => {
+    if (fetcher.data?.success) {
+      notifications.show({
+        title: "Channel updated",
+        message: "Your channel has been updated successfully.",
+        color: "green",
+      });
+      navigate(`/dashboard/channels/${loaderData.channel.id}`);
+    } else if (fetcher.data && !fetcher.data.success) {
+      notifications.show({
+        title: "Error",
+        message: fetcher.data.error || "Failed to update channel. Please try again.",
+        color: "red",
+      });
+    }
+  }, [fetcher.data, navigate, loaderData.channel.id]);
 
-    await fetch(`/dashboard/channels/${loaderData.channel.id}/edit`, {
-      method: "POST",
-      body: formData,
-    });
-
-    navigate(`/dashboard/channels/${loaderData.channel.id}`);
+  const handleSubmit = (values: ChannelFormValues) => {
+    fetcher.submit(
+      { name: values.name, webhookUrl: values.webhookUrl },
+      { method: "POST" }
+    );
   };
 
   const handleCancel = () => {

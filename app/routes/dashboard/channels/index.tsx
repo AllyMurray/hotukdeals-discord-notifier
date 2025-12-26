@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useFetcher } from "react-router";
 import type { Route } from "./+types/index";
 import { ChannelsListPage, type ChannelWithStats } from "~/pages/dashboard";
 import { DeleteChannelModal } from "~/components/channels";
@@ -55,11 +55,20 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function ChannelsIndex({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
+  const fetcher = useFetcher<typeof action>();
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     channel: ChannelWithStats | null;
   }>({ open: false, channel: null });
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isDeleting = fetcher.state === "submitting";
+
+  // Close modal and revalidate when delete completes
+  useEffect(() => {
+    if (fetcher.data?.success && deleteModal.open) {
+      setDeleteModal({ open: false, channel: null });
+    }
+  }, [fetcher.data, deleteModal.open]);
 
   const handleEdit = (id: string) => {
     navigate(`/dashboard/channels/${id}/edit`);
@@ -72,23 +81,13 @@ export default function ChannelsIndex({ loaderData }: Route.ComponentProps) {
     }
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (!deleteModal.channel) return;
 
-    setIsDeleting(true);
-    const formData = new FormData();
-    formData.set("intent", "delete");
-    formData.set("channelId", deleteModal.channel.id);
-
-    await fetch("/dashboard/channels", {
-      method: "POST",
-      body: formData,
-    });
-
-    setIsDeleting(false);
-    setDeleteModal({ open: false, channel: null });
-    // Refresh the page
-    navigate("/dashboard/channels", { replace: true });
+    fetcher.submit(
+      { intent: "delete", channelId: deleteModal.channel.id },
+      { method: "POST" }
+    );
   };
 
   return (

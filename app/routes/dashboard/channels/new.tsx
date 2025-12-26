@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect } from "react";
+import { useNavigate, useFetcher } from "react-router";
 import { notifications } from "@mantine/notifications";
 import type { Route } from "./+types/new";
 import { ChannelNewPage } from "~/pages/dashboard";
@@ -13,53 +13,46 @@ export async function action({ request }: Route.ActionArgs) {
   const name = formData.get("name") as string;
   const webhookUrl = formData.get("webhookUrl") as string;
 
-  const channel = await createChannel({ userId: user.id, name, webhookUrl });
-
-  return { success: true, channelId: channel.channelId };
+  try {
+    const channel = await createChannel({ userId: user.id, name, webhookUrl });
+    return { success: true, channelId: channel.channelId };
+  } catch {
+    return { success: false, error: "Failed to create channel" };
+  }
 }
 
 export default function NewChannel() {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fetcher = useFetcher<typeof action>();
 
-  const handleSubmit = async (values: ChannelFormValues) => {
-    setIsSubmitting(true);
+  const isSubmitting = fetcher.state === "submitting";
 
-    try {
-      const formData = new FormData();
-      formData.set("name", values.name);
-      formData.set("webhookUrl", values.webhookUrl);
-
-      const response = await fetch("/dashboard/channels/new", {
-        method: "POST",
-        body: formData,
+  useEffect(() => {
+    if (fetcher.data?.success && fetcher.data.channelId) {
+      notifications.show({
+        title: "Channel created",
+        message: "Your new channel has been created successfully.",
+        color: "green",
       });
-
-      const result = await response.json();
-
-      if (result.success) {
-        notifications.show({
-          title: "Channel created",
-          message: "Your new channel has been created successfully.",
-          color: "green",
-        });
-        navigate(`/dashboard/channels/${result.channelId}`);
-      } else {
-        notifications.show({
-          title: "Error",
-          message: result.error || "Failed to create channel. Please try again.",
-          color: "red",
-        });
-        setIsSubmitting(false);
-      }
-    } catch {
+      navigate(`/dashboard/channels/${fetcher.data.channelId}`);
+    } else if (fetcher.data && !fetcher.data.success) {
       notifications.show({
         title: "Error",
-        message: "Failed to create channel. Please try again.",
+        message: fetcher.data.error || "Failed to create channel. Please try again.",
         color: "red",
       });
-      setIsSubmitting(false);
     }
+  }, [fetcher.data, navigate]);
+
+  const handleSubmit = (values: ChannelFormValues) => {
+    const formData = new FormData();
+    formData.set("name", values.name);
+    formData.set("webhookUrl", values.webhookUrl);
+
+    fetcher.submit(formData, {
+      method: "POST",
+      action: "/dashboard/channels/new",
+    });
   };
 
   const handleCancel = () => {
