@@ -8,17 +8,20 @@ import {
   type ConfigFormValues,
 } from "~/components/configs";
 import { notifications } from "@mantine/notifications";
+import { requireUser } from "~/lib/auth";
 import {
   getChannel,
   getConfigsByChannel,
+  getConfig,
   upsertConfig,
   deleteConfig,
 } from "../../../../src/db/repository";
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  const { user } = await requireUser(request);
   const channel = await getChannel({ id: params.id! });
 
-  if (!channel) {
+  if (!channel || channel.userId !== user.id) {
     throw new Response("Channel not found", { status: 404 });
   }
 
@@ -40,8 +43,15 @@ export async function loader({ params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
+  const { user } = await requireUser(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  // Verify channel ownership for all actions
+  const channel = await getChannel({ id: params.id! });
+  if (!channel || channel.userId !== user.id) {
+    return { success: false, error: "Channel not found or not authorized" };
+  }
 
   if (intent === "upsertConfig") {
     const searchTerm = formData.get("searchTerm") as string;
@@ -55,6 +65,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     const caseSensitive = formData.get("caseSensitive") === "true";
 
     await upsertConfig({
+      userId: user.id,
       channelId: params.id!,
       searchTerm,
       enabled,
@@ -76,7 +87,14 @@ export async function action({ request, params }: Route.ActionArgs) {
     const searchTerm = formData.get("searchTerm") as string;
     const enabled = formData.get("enabled") === "true";
 
+    // Get existing config to preserve userId
+    const existingConfig = await getConfig({ channelId: params.id!, searchTerm });
+    if (!existingConfig) {
+      return { success: false, error: "Config not found" };
+    }
+
     await upsertConfig({
+      userId: user.id,
       channelId: params.id!,
       searchTerm,
       enabled,
@@ -86,11 +104,6 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   if (intent === "testNotification") {
-    const channel = await getChannel({ id: params.id! });
-    if (!channel) {
-      return { success: false, error: "Channel not found" };
-    }
-
     try {
       const response = await fetch(channel.webhookUrl, {
         method: "POST",

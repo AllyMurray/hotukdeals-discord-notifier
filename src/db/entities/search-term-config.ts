@@ -4,11 +4,15 @@ import { Entity } from 'electrodb';
 export const SearchTermConfigEntity = new Entity({
   model: {
     entity: 'SearchTermConfig',
-    version: '1',
+    version: '2',
     service: 'hotukdeals',
   },
   attributes: {
     channelId: {
+      type: 'string',
+      required: true,
+    },
+    userId: {
       type: 'string',
       required: true,
     },
@@ -55,21 +59,21 @@ export const SearchTermConfigEntity = new Entity({
       pk: {
         field: 'pk',
         composite: ['channelId'],
-        template: 'CHANNEL#${channelId}',
+        template: 'channel#${channelId}',
       },
       sk: {
         field: 'sk',
         composite: ['searchTerm'],
-        template: 'CONFIG#${searchTerm}',
+        template: 'config#${searchTerm}',
       },
     },
-    // GSI for listing all configs (avoids scan)
-    allConfigs: {
+    // GSI1: List configs by user (web app)
+    byUser: {
       index: 'gsi1',
       pk: {
         field: 'gsi1pk',
-        composite: [],
-        template: 'CONFIGS',
+        composite: ['userId'],
+        template: 'user#${userId}#configs',
       },
       sk: {
         field: 'gsi1sk',
@@ -77,18 +81,32 @@ export const SearchTermConfigEntity = new Entity({
         template: '${channelId}#${searchTerm}',
       },
     },
-    // GSI for looking up config by search term
+    // GSI2: Lookup by search term (notifier)
     bySearchTerm: {
       index: 'gsi2',
       pk: {
         field: 'gsi2pk',
         composite: ['searchTerm'],
-        template: 'SEARCHTERM#${searchTerm}',
+        template: 'searchterm#${searchTerm}',
       },
       sk: {
         field: 'gsi2sk',
         composite: ['channelId'],
-        template: 'CHANNEL#${channelId}',
+        template: 'channel#${channelId}',
+      },
+    },
+    // GSI3: List all configs (notifier)
+    allConfigs: {
+      index: 'gsi3',
+      pk: {
+        field: 'gsi3pk',
+        composite: [],
+        template: 'all#configs',
+      },
+      sk: {
+        field: 'gsi3sk',
+        composite: ['channelId', 'searchTerm'],
+        template: '${channelId}#${searchTerm}',
       },
     },
   },

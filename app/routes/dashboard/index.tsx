@@ -1,11 +1,14 @@
 import type { Route } from "./+types/index";
 import { DashboardHomePage, type DashboardStats } from "~/pages/dashboard";
-import { getAllChannels, getAllConfigs } from "../../../src/db/repository";
+import { requireUser } from "~/lib/auth";
+import { getChannelsByUser, getConfigsByUser } from "../../../src/db/repository";
 
 export async function loader({ request }: Route.LoaderArgs) {
+  const { user } = await requireUser(request);
+
   const [channels, configs] = await Promise.all([
-    getAllChannels(),
-    getAllConfigs(),
+    getChannelsByUser({ userId: user.id }),
+    getConfigsByUser({ userId: user.id }),
   ]);
 
   const stats: DashboardStats = {

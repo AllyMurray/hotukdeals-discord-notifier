@@ -12,15 +12,20 @@ import {
 // Parameter Types
 // ============================================================================
 
+// Channel params
+export type GetChannelsByUserParams = { userId: string };
 export type GetChannelParams = { id: string };
 export type UpdateChannelParams = { id: string; name?: string; webhookUrl?: string };
 export type DeleteChannelParams = { id: string };
-export type CreateChannelParams = { name: string; webhookUrl: string };
+export type CreateChannelParams = { userId: string; name: string; webhookUrl: string };
 
+// Config params
+export type GetConfigsByUserParams = { userId: string };
 export type GetConfigsByChannelParams = { channelId: string };
 export type GetConfigParams = { channelId: string; searchTerm: string };
 export type GetConfigBySearchTermParams = { term: string };
 export type UpsertConfigParams = {
+  userId: string;
   channelId: string;
   searchTerm: string;
   enabled?: boolean;
@@ -31,6 +36,7 @@ export type UpsertConfigParams = {
 export type DeleteConfigParams = { channelId: string; searchTerm: string };
 export type DeleteConfigsByChannelParams = { channelId: string };
 
+// Deal params
 export type DealExistsParams = { id: string };
 export type GetDealParams = { id: string };
 export type CreateDealParams = {
@@ -47,7 +53,17 @@ export type CreateDealParams = {
 // ============================================================================
 
 /**
- * Get all channels (using GSI - no scan)
+ * Get all channels for a user (using GSI1 - user-scoped)
+ */
+export async function getChannelsByUser({ userId }: GetChannelsByUserParams): Promise<Channel[]> {
+  const result = await HotUKDealsService.entities.channel.query
+    .byUser({ userId })
+    .go();
+  return parseChannels(result.data);
+}
+
+/**
+ * Get all channels (using GSI3 - for notifier)
  */
 export async function getAllChannels(): Promise<Channel[]> {
   const result = await HotUKDealsService.entities.channel.query
@@ -70,9 +86,9 @@ export async function getChannel({ id }: GetChannelParams): Promise<Channel | nu
 /**
  * Create a new channel
  */
-export async function createChannel({ name, webhookUrl }: CreateChannelParams): Promise<Channel> {
+export async function createChannel({ userId, name, webhookUrl }: CreateChannelParams): Promise<Channel> {
   const result = await HotUKDealsService.entities.channel
-    .put({ name, webhookUrl })
+    .put({ userId, name, webhookUrl })
     .go();
   return parseChannel(result.data);
 }
@@ -110,7 +126,17 @@ export async function deleteChannel({ id }: DeleteChannelParams): Promise<void> 
 // ============================================================================
 
 /**
- * Get all search term configs (using GSI - no scan)
+ * Get all configs for a user (using GSI1 - user-scoped)
+ */
+export async function getConfigsByUser({ userId }: GetConfigsByUserParams): Promise<SearchTermConfig[]> {
+  const result = await HotUKDealsService.entities.searchTermConfig.query
+    .byUser({ userId })
+    .go();
+  return parseSearchTermConfigs(result.data);
+}
+
+/**
+ * Get all search term configs (using GSI3 - for notifier)
  */
 export async function getAllConfigs(): Promise<SearchTermConfig[]> {
   const result = await HotUKDealsService.entities.searchTermConfig.query
@@ -175,6 +201,7 @@ export async function getAllConfigsForSearchTerm({ term }: GetConfigBySearchTerm
 export async function upsertConfig(config: UpsertConfigParams): Promise<SearchTermConfig> {
   const result = await HotUKDealsService.entities.searchTermConfig
     .upsert({
+      userId: config.userId,
       channelId: config.channelId,
       searchTerm: config.searchTerm,
       enabled: config.enabled ?? true,

@@ -3,14 +3,17 @@ import { useNavigate } from "react-router";
 import type { Route } from "./+types/index";
 import { ChannelsListPage, type ChannelWithStats } from "~/pages/dashboard";
 import { DeleteChannelModal } from "~/components/channels";
+import { requireUser } from "~/lib/auth";
 import {
-  getAllChannels,
+  getChannelsByUser,
+  getChannel,
   getConfigsByChannel,
   deleteChannel,
 } from "../../../../src/db/repository";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const channels = await getAllChannels();
+  const { user } = await requireUser(request);
+  const channels = await getChannelsByUser({ userId: user.id });
 
   // Get config counts for each channel
   const channelsWithStats: ChannelWithStats[] = await Promise.all(
@@ -30,11 +33,19 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  const { user } = await requireUser(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
 
   if (intent === "delete") {
     const channelId = formData.get("channelId") as string;
+
+    // Verify ownership before deleting
+    const channel = await getChannel({ id: channelId });
+    if (!channel || channel.userId !== user.id) {
+      return { success: false, error: "Channel not found or not authorized" };
+    }
+
     await deleteChannel({ id: channelId });
     return { success: true };
   }

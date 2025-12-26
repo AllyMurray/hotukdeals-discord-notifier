@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 export const ChannelEntity = new Entity({
   model: {
     entity: 'Channel',
-    version: '1',
+    version: '2',
     service: 'hotukdeals',
   },
   attributes: {
@@ -13,6 +13,10 @@ export const ChannelEntity = new Entity({
       type: 'string',
       required: true,
       default: () => randomUUID(),
+    },
+    userId: {
+      type: 'string',
+      required: true,
     },
     name: {
       type: 'string',
@@ -39,26 +43,40 @@ export const ChannelEntity = new Entity({
       pk: {
         field: 'pk',
         composite: ['channelId'],
-        template: 'CHANNEL#${channelId}',
+        template: 'channel#${channelId}',
       },
       sk: {
         field: 'sk',
         composite: ['channelId'],
-        template: 'CHANNEL#${channelId}',
+        template: 'channel#${channelId}',
       },
     },
-    // GSI for listing all channels
-    allChannels: {
+    // GSI1: List channels by user (web app)
+    byUser: {
       index: 'gsi1',
       pk: {
         field: 'gsi1pk',
-        composite: [],
-        template: 'CHANNELS',
+        composite: ['userId'],
+        template: 'user#${userId}#channels',
       },
       sk: {
         field: 'gsi1sk',
         composite: ['channelId'],
-        template: 'CHANNEL#${channelId}',
+        template: 'channel#${channelId}',
+      },
+    },
+    // GSI3: List all channels (notifier)
+    allChannels: {
+      index: 'gsi3',
+      pk: {
+        field: 'gsi3pk',
+        composite: [],
+        template: 'all#channels',
+      },
+      sk: {
+        field: 'gsi3sk',
+        composite: ['channelId'],
+        template: 'channel#${channelId}',
       },
     },
   },

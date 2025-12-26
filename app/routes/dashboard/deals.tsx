@@ -1,26 +1,29 @@
 import { useState } from "react";
 import type { Route } from "./+types/deals";
 import { DealsPage } from "~/pages/dashboard";
-import { getAllConfigs } from "../../../src/db/repository";
+import { requireUser } from "~/lib/auth";
+import { getConfigsByUser } from "../../../src/db/repository";
 import { HotUKDealsService } from "../../../src/db/service";
 
 export async function loader({ request }: Route.LoaderArgs) {
+  const { user } = await requireUser(request);
   const url = new URL(request.url);
   const searchTermFilter = url.searchParams.get("searchTerm");
   const limit = 50;
 
-  // Get all unique search terms for the filter dropdown
-  const configs = await getAllConfigs();
+  // Get unique search terms for THIS user only
+  const configs = await getConfigsByUser({ userId: user.id });
   const searchTerms = [...new Set(configs.map((c) => c.searchTerm))];
 
   // Query deals - using ElectroDB scan for now (pagination would need GSI)
-  let query = HotUKDealsService.entities.deal.scan;
+  const query = HotUKDealsService.entities.deal.scan;
 
-  const result = await query.go({ limit: limit + 1 });
+  const result = await query.go({ limit: 500 }); // Get more to filter
 
-  let deals = result.data;
+  // Filter deals to only those matching user's search terms
+  let deals = result.data.filter((d) => searchTerms.includes(d.searchTerm));
 
-  // Filter by search term if specified
+  // Further filter by specific search term if specified
   if (searchTermFilter) {
     deals = deals.filter((d) => d.searchTerm === searchTermFilter);
   }

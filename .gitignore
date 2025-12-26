@@ -4,8 +4,9 @@
 
 node_modules
 
-# Migration state file
+# Migration state files
 .migration-state.json
+.migration-userid-state.json
 
 # React Router build output
 build

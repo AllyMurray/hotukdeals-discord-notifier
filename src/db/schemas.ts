@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Channel schema
 export const ChannelSchema = z.object({
   channelId: z.string(),
+  userId: z.string(),
   name: z.string(),
   webhookUrl: z.string(),
   createdAt: z.string().optional(),
@@ -12,6 +13,7 @@ export const ChannelSchema = z.object({
 // SearchTermConfig schema
 export const SearchTermConfigSchema = z.object({
   channelId: z.string(),
+  userId: z.string(),
   searchTerm: z.string(),
   enabled: z.boolean().default(true),
   excludeKeywords: z.array(z.string()).default([]),

@@ -8,15 +8,18 @@ const hotukdealsTable = new sst.aws.Dynamo("HotUKDealsTable", {
   fields: {
     pk: "string",      // Partition key
     sk: "string",      // Sort key
-    gsi1pk: "string",  // GSI1 partition key (for listing all configs)
+    gsi1pk: "string",  // GSI1 partition key (user-scoped queries)
     gsi1sk: "string",  // GSI1 sort key
-    gsi2pk: "string",  // GSI2 partition key (for lookup by search term)
+    gsi2pk: "string",  // GSI2 partition key (lookup by search term)
     gsi2sk: "string",  // GSI2 sort key
+    gsi3pk: "string",  // GSI3 partition key (global queries for notifier)
+    gsi3sk: "string",  // GSI3 sort key
   },
   primaryIndex: { hashKey: "pk", rangeKey: "sk" },
   globalIndexes: {
     gsi1: { hashKey: "gsi1pk", rangeKey: "gsi1sk" },
     gsi2: { hashKey: "gsi2pk", rangeKey: "gsi2sk" },
+    gsi3: { hashKey: "gsi3pk", rangeKey: "gsi3sk" },
   },
   ttl: "ttl",  // TTL attribute for Deal entity (12 month expiry)
   transform: {
