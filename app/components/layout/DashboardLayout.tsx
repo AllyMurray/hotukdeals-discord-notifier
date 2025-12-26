@@ -55,19 +55,21 @@ export function DashboardLayout({ user, children, isAdmin = false }: DashboardLa
     return location.pathname.startsWith(href);
   };
 
-  const NavItems = ({ onNavigate }: { onNavigate?: () => void }) => (
+  const NavItems = ({ onNavigate, showLabel = true }: { onNavigate?: () => void; showLabel?: boolean }) => (
     <Stack gap={4}>
-      <Text
-        size="xs"
-        fw={600}
-        c="dimmed"
-        tt="uppercase"
-        px="sm"
-        mb={8}
-        style={{ letterSpacing: "0.08em" }}
-      >
-        Menu
-      </Text>
+      {showLabel && (
+        <Text
+          size="xs"
+          fw={600}
+          c="dimmed"
+          tt="uppercase"
+          px="sm"
+          mb={8}
+          style={{ letterSpacing: "0.08em" }}
+        >
+          Menu
+        </Text>
+      )}
 
       {navItems.map((item, index) => (
         <NavLink
@@ -251,7 +253,7 @@ export function DashboardLayout({ user, children, isAdmin = false }: DashboardLa
         }}
       >
         <ScrollArea>
-          <NavItems onNavigate={closeDrawer} />
+          <NavItems onNavigate={closeDrawer} showLabel={false} />
 
           <Box mt="xl">
             <Divider my="md" />
