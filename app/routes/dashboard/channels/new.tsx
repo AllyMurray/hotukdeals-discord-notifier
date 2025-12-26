@@ -25,28 +25,37 @@ export default function NewChannel() {
   const handleSubmit = async (values: ChannelFormValues) => {
     setIsSubmitting(true);
 
-    const formData = new FormData();
-    formData.set("name", values.name);
-    formData.set("webhookUrl", values.webhookUrl);
+    try {
+      const formData = new FormData();
+      formData.set("name", values.name);
+      formData.set("webhookUrl", values.webhookUrl);
 
-    const response = await fetch("/dashboard/channels/new", {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      notifications.show({
-        title: "Channel created",
-        message: "Your new channel has been created successfully.",
-        color: "green",
+      const response = await fetch("/dashboard/channels/new", {
+        method: "POST",
+        body: formData,
       });
-      navigate(`/dashboard/channels/${result.channelId}?addSearch=true`);
-    } else {
+
+      const result = await response.json();
+
+      if (result.success) {
+        notifications.show({
+          title: "Channel created",
+          message: "Your new channel has been created successfully.",
+          color: "green",
+        });
+        navigate(`/dashboard/channels/${result.channelId}`);
+      } else {
+        notifications.show({
+          title: "Error",
+          message: result.error || "Failed to create channel. Please try again.",
+          color: "red",
+        });
+        setIsSubmitting(false);
+      }
+    } catch {
       notifications.show({
         title: "Error",
-        message: result.error || "Failed to create channel. Please try again.",
+        message: "Failed to create channel. Please try again.",
         color: "red",
       });
       setIsSubmitting(false);
