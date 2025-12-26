@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { notifications } from "@mantine/notifications";
 import type { Route } from "./+types/new";
 import { ChannelNewPage } from "~/pages/dashboard";
 import { type ChannelFormValues } from "~/components/channels";
@@ -24,20 +25,39 @@ export default function NewChannel() {
   const handleSubmit = async (values: ChannelFormValues) => {
     setIsSubmitting(true);
 
-    const formData = new FormData();
-    formData.set("name", values.name);
-    formData.set("webhookUrl", values.webhookUrl);
+    try {
+      const formData = new FormData();
+      formData.set("name", values.name);
+      formData.set("webhookUrl", values.webhookUrl);
 
-    const response = await fetch("/dashboard/channels/new", {
-      method: "POST",
-      body: formData,
-    });
+      const response = await fetch("/dashboard/channels/new", {
+        method: "POST",
+        body: formData,
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (result.success) {
-      navigate(`/dashboard/channels/${result.channelId}`);
-    } else {
+      if (result.success) {
+        notifications.show({
+          title: "Channel created",
+          message: "Your new channel has been created successfully.",
+          color: "green",
+        });
+        navigate(`/dashboard/channels/${result.channelId}`);
+      } else {
+        notifications.show({
+          title: "Error",
+          message: result.error || "Failed to create channel. Please try again.",
+          color: "red",
+        });
+        setIsSubmitting(false);
+      }
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to create channel. Please try again.",
+        color: "red",
+      });
       setIsSubmitting(false);
     }
   };
