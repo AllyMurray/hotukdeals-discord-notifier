@@ -18,7 +18,7 @@ import {
   IconSettings,
   IconAlertCircle,
   IconArrowRight,
-  IconFlame,
+  IconRadar,
   IconWebhook,
   IconSun,
   IconMoon,
@@ -73,7 +73,7 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
                   boxShadow: "0 4px 12px rgba(255, 144, 37, 0.3)",
                 }}
               >
-                <IconFlame size={20} color="white" stroke={2} />
+                <IconRadar size={20} color="white" stroke={2} />
               </Box>
               <Text
                 fw={700}
@@ -184,7 +184,7 @@ export function HomePage({ isAuthenticated, error }: HomePageProps) {
                 animation: "fadeInUp 0.6s ease-out forwards",
               }}
             >
-              <IconFlame size={48} color="white" stroke={1.5} />
+              <IconRadar size={48} color="white" stroke={1.5} />
             </Box>
 
             {/* Hero Title */}

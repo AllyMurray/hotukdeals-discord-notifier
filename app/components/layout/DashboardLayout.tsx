@@ -22,7 +22,7 @@ import {
   IconLogout,
   IconSun,
   IconMoon,
-  IconFlame,
+  IconRadar,
   IconChevronRight,
   IconShield,
 } from "@tabler/icons-react";
@@ -128,7 +128,7 @@ export function DashboardLayout({ user, children, isAdmin = false }: DashboardLa
               style={{ textDecoration: "none", color: "inherit" }}
             >
               <Box className="logo-icon">
-                <IconFlame size={18} stroke={2} />
+                <IconRadar size={18} stroke={2} />
               </Box>
               <Text fw={700} size="lg" style={{ letterSpacing: "-0.02em" }}>
                 DealPing
