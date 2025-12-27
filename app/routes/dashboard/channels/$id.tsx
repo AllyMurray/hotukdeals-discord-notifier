@@ -15,7 +15,7 @@ import {
   getConfig,
   upsertConfig,
   deleteConfig,
-} from "../../../../src/db/repository";
+} from "~/db/repository.server";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const { user } = await requireUser(request);
