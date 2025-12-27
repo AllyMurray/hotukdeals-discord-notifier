@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { redirect, useNavigate, useActionData } from "react-router";
+import { useEffect } from "react";
+import { notifications } from "@mantine/notifications";
 import type { Route } from "./+types/$id.edit";
 import { ChannelEditPage } from "~/pages/dashboard";
-import { type ChannelFormValues } from "~/components/channels";
 import { requireUser } from "~/lib/auth";
 import { getChannel, updateChannel } from "../../../../src/db/repository";
 
@@ -32,47 +32,39 @@ export async function action({ request, params }: Route.ActionArgs) {
   // Verify ownership before updating
   const channel = await getChannel({ id: params.id! });
   if (!channel || channel.userId !== user.id) {
-    return { success: false, error: "Channel not found or not authorized" };
+    throw new Response("Channel not found", { status: 404 });
   }
 
-  await updateChannel({
-    id: params.id!,
-    name,
-    webhookUrl,
-  });
-
-  return { success: true };
+  try {
+    await updateChannel({
+      id: params.id!,
+      name,
+      webhookUrl,
+    });
+    return redirect(`/dashboard/channels/${params.id}`);
+  } catch {
+    return { error: "Failed to update channel. Please try again." };
+  }
 }
 
 export default function EditChannel({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const actionData = useActionData<typeof action>();
 
-  const handleSubmit = async (values: ChannelFormValues) => {
-    setIsSubmitting(true);
-
-    const formData = new FormData();
-    formData.set("name", values.name);
-    formData.set("webhookUrl", values.webhookUrl);
-
-    await fetch(`/dashboard/channels/${loaderData.channel.id}/edit`, {
-      method: "POST",
-      body: formData,
-    });
-
-    navigate(`/dashboard/channels/${loaderData.channel.id}`);
-  };
-
-  const handleCancel = () => {
-    navigate(`/dashboard/channels/${loaderData.channel.id}`);
-  };
+  useEffect(() => {
+    if (actionData && "error" in actionData) {
+      notifications.show({
+        title: "Error",
+        message: actionData.error,
+        color: "red",
+      });
+    }
+  }, [actionData]);
 
   return (
     <ChannelEditPage
       channel={loaderData.channel}
-      onSubmit={handleSubmit}
-      onCancel={handleCancel}
-      isSubmitting={isSubmitting}
+      onCancel={() => navigate(`/dashboard/channels/${loaderData.channel.id}`)}
     />
   );
 }

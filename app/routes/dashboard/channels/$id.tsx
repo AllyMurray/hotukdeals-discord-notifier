@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useRevalidator } from "react-router";
+import { useState, useEffect } from "react";
+import { useFetcher } from "react-router";
 import type { Route } from "./+types/$id";
 import { ChannelDetailPage } from "~/pages/dashboard";
 import {
@@ -135,8 +135,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
-  const navigate = useNavigate();
-  const revalidator = useRevalidator();
+  const fetcher = useFetcher<typeof action>();
 
   const [configModal, setConfigModal] = useState<{
     open: boolean;
@@ -149,9 +148,52 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
     searchTerm: string | null;
   }>({ open: false, searchTerm: null });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
+  // Track which operation is in progress using fetcher.formData
+  const pendingIntent = fetcher.formData?.get("intent");
+  const isSubmitting = fetcher.state !== "idle" && pendingIntent === "upsertConfig";
+  const isDeleting = fetcher.state !== "idle" && pendingIntent === "deleteConfig";
+  const isTesting = fetcher.state !== "idle" && pendingIntent === "testNotification";
+
+  // Track the last intent for showing notifications after completion
+  const [lastIntent, setLastIntent] = useState<string | null>(null);
+
+  // Update lastIntent when a new submission starts
+  useEffect(() => {
+    if (fetcher.state === "submitting" && pendingIntent) {
+      setLastIntent(pendingIntent as string);
+    }
+  }, [fetcher.state, pendingIntent]);
+
+  // Handle fetcher completion
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data && lastIntent) {
+      if (lastIntent === "testNotification") {
+        if (fetcher.data.success) {
+          notifications.show({
+            title: "Success",
+            message: "Test notification sent successfully!",
+            color: "green",
+          });
+        } else {
+          notifications.show({
+            title: "Error",
+            message: fetcher.data.error || "Failed to send test notification",
+            color: "red",
+          });
+        }
+      }
+
+      if (lastIntent === "upsertConfig" && fetcher.data.success) {
+        setConfigModal({ open: false, config: null, isEditing: false });
+      }
+
+      if (lastIntent === "deleteConfig" && fetcher.data.success) {
+        setDeleteModal({ open: false, searchTerm: null });
+      }
+
+      setLastIntent(null);
+    }
+  }, [fetcher.state, fetcher.data, lastIntent]);
 
   const handleAddConfig = () => {
     setConfigModal({ open: true, config: null, isEditing: false });
@@ -172,91 +214,48 @@ export default function ChannelDetail({ loaderData }: Route.ComponentProps) {
     setDeleteModal({ open: true, searchTerm });
   };
 
-  const handleToggleConfig = async (searchTerm: string, enabled: boolean) => {
-    const formData = new FormData();
-    formData.set("intent", "toggleConfig");
-    formData.set("searchTerm", searchTerm);
-    formData.set("enabled", String(enabled));
-
-    await fetch(`/dashboard/channels/${loaderData.channel.id}`, {
-      method: "POST",
-      body: formData,
-    });
-
-    revalidator.revalidate();
+  const handleToggleConfig = (searchTerm: string, enabled: boolean) => {
+    fetcher.submit(
+      {
+        intent: "toggleConfig",
+        searchTerm,
+        enabled: String(enabled),
+      },
+      { method: "POST" }
+    );
   };
 
-  const handleSubmitConfig = async (values: ConfigFormValues) => {
-    setIsSubmitting(true);
-
-    const formData = new FormData();
-    formData.set("intent", "upsertConfig");
-    formData.set("searchTerm", values.searchTerm);
-    formData.set("enabled", String(values.enabled));
-    formData.set("includeKeywords", JSON.stringify(values.includeKeywords));
-    formData.set("excludeKeywords", JSON.stringify(values.excludeKeywords));
-    formData.set("caseSensitive", String(values.caseSensitive));
-
-    await fetch(`/dashboard/channels/${loaderData.channel.id}`, {
-      method: "POST",
-      body: formData,
-    });
-
-    setIsSubmitting(false);
-    setConfigModal({ open: false, config: null, isEditing: false });
-    revalidator.revalidate();
+  const handleSubmitConfig = (values: ConfigFormValues) => {
+    fetcher.submit(
+      {
+        intent: "upsertConfig",
+        searchTerm: values.searchTerm,
+        enabled: String(values.enabled),
+        includeKeywords: JSON.stringify(values.includeKeywords),
+        excludeKeywords: JSON.stringify(values.excludeKeywords),
+        caseSensitive: String(values.caseSensitive),
+      },
+      { method: "POST" }
+    );
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!deleteModal.searchTerm) return;
 
-    setIsDeleting(true);
-
-    const formData = new FormData();
-    formData.set("intent", "deleteConfig");
-    formData.set("searchTerm", deleteModal.searchTerm);
-
-    await fetch(`/dashboard/channels/${loaderData.channel.id}`, {
-      method: "POST",
-      body: formData,
-    });
-
-    setIsDeleting(false);
-    setDeleteModal({ open: false, searchTerm: null });
-    revalidator.revalidate();
+    fetcher.submit(
+      {
+        intent: "deleteConfig",
+        searchTerm: deleteModal.searchTerm,
+      },
+      { method: "POST" }
+    );
   };
 
-  const handleTestNotification = async () => {
-    setIsTesting(true);
-
-    const formData = new FormData();
-    formData.set("intent", "testNotification");
-
-    const response = await fetch(
-      `/dashboard/channels/${loaderData.channel.id}`,
-      {
-        method: "POST",
-        body: formData,
-      }
+  const handleTestNotification = () => {
+    fetcher.submit(
+      { intent: "testNotification" },
+      { method: "POST" }
     );
-
-    const result = await response.json();
-
-    setIsTesting(false);
-
-    if (result.success) {
-      notifications.show({
-        title: "Success",
-        message: "Test notification sent successfully!",
-        color: "green",
-      });
-    } else {
-      notifications.show({
-        title: "Error",
-        message: result.error || "Failed to send test notification",
-        color: "red",
-      });
-    }
   };
 
   return (
