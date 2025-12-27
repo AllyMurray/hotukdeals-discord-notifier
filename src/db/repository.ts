@@ -212,18 +212,43 @@ export async function getAllConfigsForSearchTerm({ term }: GetConfigBySearchTerm
  * Create or update a search term config
  */
 export async function upsertConfig(config: UpsertConfigParams): Promise<SearchTermConfig> {
-  const result = await HotUKDealsService.entities.searchTermConfig
-    .upsert({
-      userId: config.userId,
-      channelId: config.channelId,
-      searchTerm: config.searchTerm,
-      enabled: config.enabled ?? true,
-      excludeKeywords: config.excludeKeywords ?? [],
-      includeKeywords: config.includeKeywords ?? [],
-      caseSensitive: config.caseSensitive ?? false,
-    })
-    .go();
-  return parseSearchTermConfig(result.data);
+  const { channelId, searchTerm, userId } = config;
+
+  // Check if config already exists
+  const existing = await getConfig({ channelId, searchTerm });
+
+  if (existing) {
+    // Update existing config - use patch to respect readOnly fields
+    await HotUKDealsService.entities.searchTermConfig
+      .patch({ channelId, searchTerm })
+      .set({
+        enabled: config.enabled ?? existing.enabled,
+        excludeKeywords: config.excludeKeywords ?? existing.excludeKeywords,
+        includeKeywords: config.includeKeywords ?? existing.includeKeywords,
+        caseSensitive: config.caseSensitive ?? existing.caseSensitive,
+      })
+      .go();
+  } else {
+    // Create new config
+    await HotUKDealsService.entities.searchTermConfig
+      .put({
+        userId,
+        channelId,
+        searchTerm,
+        enabled: config.enabled ?? true,
+        excludeKeywords: config.excludeKeywords ?? [],
+        includeKeywords: config.includeKeywords ?? [],
+        caseSensitive: config.caseSensitive ?? false,
+      })
+      .go();
+  }
+
+  // Fetch and return the updated config
+  const updated = await getConfig({ channelId, searchTerm });
+  if (!updated) {
+    throw new Error('Failed to upsert config');
+  }
+  return updated;
 }
 
 /**
